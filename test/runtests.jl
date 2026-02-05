@@ -8,4 +8,4 @@ using QuadGK
 # include("schemes_triangular.jl") # do they give the correct results (with the expected accuracy)?
 # include("models.jl") # do they give the correct results (with the expected accuracy)?
 # include("fermions.jl") # do they give the correct results (with the expected accuracy)?
-include("svt.jl")
+include("low_rank.jl")

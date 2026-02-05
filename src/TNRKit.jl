@@ -120,7 +120,7 @@ export cdl_tensor
 include("utility/projectors.jl")
 
 include("utility/weighted_low_rank.jl")
-export weighted_low_rank, weighted_low_rank_fix
+export svd_low_rank
 
 include("utility/blocking.jl")
 export block_tensors
