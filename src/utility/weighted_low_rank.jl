@@ -36,6 +36,10 @@ function svd_low_rank(PhidPhi::Function, PhidY::TensorMap, X0::TensorMap, Y::Ten
     error = Inf
 
     U, S, V = tsvd(X_update; alg=TensorKit.SVD(), trunc=truncdim(trunc_dim) & truncbelow(1e-14))
+    X_init = U * S * V
+    if verbosity > 1
+        @infov 3 "Initial truncation: kept rank = $(length(S.data)), error = $((tr(X_init' * PhidPhi(X_init)) - 2 * real(tr(PhidY * X_init')) + cost_const) / cost_const)"
+    end
     for step in 1:maximum_steps
         SV = pseudopow(S, k) * V
         US_new, info = linsolve(x -> (PhidPhi(x * SV) * SV'), PhidY * SV', U * pseudopow(S, 1 - k); krylovdim=20, maxiter=100, tol=1.0e-12, verbosity=0)
@@ -65,48 +69,38 @@ function svd_low_rank(PhidPhi::Function, PhidY::TensorMap, X0::TensorMap, Y::Ten
     return X_update, error
 end
 
-function smart_tunning_function_increasing()
-    
+function smart_tunning_increasing()
+
 end
 
-function TR_low_rank(PhidPhi::Function, PhidY::TensorMap, X0::TensorMap, Y::TensorMap, trunc_dim::Int; μ=10, τ=100.0, ρ=1.01, μ_max=1e10, τ_max=1e10, maximum_steps=100, verbosity=3, initial_dim=1)
-    U, S, V = tsvd(X0; alg=TensorKit.SVD(), trunc=truncdim(initial_dim) & truncbelow(1e-14))
-    X_update = U * S * V
+function TR_low_rank(PhidPhi::Function, PhidY::TensorMap, X0::TensorMap, Y::TensorMap, trunc_dim::Int; ξ=1e-4, ρ=0.99, ξ_min=1e-7, maximum_steps=10000, verbosity=3)
+    X_update, _, _ = svt(X0, trunc_dim)
     Λ = zeros(eltype(X0), space(X0))
-    M = X_update
-    dim_this = initial_dim
+    M = copy(X_update)
 
     cost_const = tr(PhidY * Y')
     error = Inf
+
     for i in 1:maximum_steps
-        # μ_last = μ
-        X_new, info = linsolve(x -> (τ * PhidPhi(x) + μ * x), τ * PhidY + μ * M + Λ, X_update; krylovdim=20, maxiter=100, tol=1.0e-12, verbosity=0)
-        M_new, rank, _ = svt(X_new + (-Λ / μ), 1 / μ)
-        Λ += μ * (M - X_update)
-        # μ = min(μ * ρ, μ_max)
-        # τ = min(μ^2, τ_max)
+        X_new, info = linsolve(x -> (PhidPhi(x) + ξ * x), PhidY + ξ * M + Λ, X_update; krylovdim=5, maxiter=20, tol=1.0e-12, verbosity=0)
+        M_new, rank, _ = svt(X_new + (-Λ / ξ), ξ)
+        Λ += ξ * (M_new - X_update)
 
-        error = (tr(X_new' * PhidPhi(X_new)) - 2 * real(tr(PhidY * X_new')) + cost_const) / cost_const
-
+        error_X = (tr(X_new' * PhidPhi(X_new)) - 2 * real(tr(PhidY * X_new')) + cost_const) / cost_const
+        error_M = (tr(M_new' * PhidPhi(M_new)) - 2 * real(tr(PhidY * M_new')) + cost_const) / cost_const
         residue = norm(X_new - M_new, Inf)
         relative_change = norm(X_update - X_new) / norm(X_update)
-        @infov 3 "Iteration $i: rank = $rank, error = $(round(error, digits=10)), residue = $(round(residue, digits=5)), μ = $(round(μ, digits=10)), τ = $(round(τ, digits=3)), relative_change = $(round(relative_change, digits=3))"
 
-        if relative_change < 0.01 && dim_this <= trunc_dim
-            dim_this += 1
+        if verbosity > 1
+            @infov 3 "Iteration $i: rank = $rank, error_X = $(round(error_X, digits=10)), error_M = $(round(error_M, digits=10)), residue = $(round(residue, digits=5)), ξ = $(round(ξ, digits=7)), relative_change = $(round(relative_change, digits=3))"
         end
 
-        if rank < trunc_dim
-            μ = min(μ + 20, μ_max)
-        elseif rank == trunc_dim
-            μ += 10
-        elseif rank > trunc_dim
-            μ -= 1
+        if rank > trunc_dim
+            ξ = min(ξ / ρ, 1.0)
+        else
+            ξ = max(ξ * ρ, ξ_min)
         end
-
-        τ = min(μ^2, τ_max)
-
-
+        
         X_update = X_new
         M = M_new
     end
