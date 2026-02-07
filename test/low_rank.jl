@@ -26,12 +26,10 @@ PhidPhi(X::TensorMap) = transpose(Φ_left * transpose(X, ((3, 1), (4, 2))) * Φ_
 PhidY = PhidPhi(T)
 
 
+# X_approx1, error1 = svd_low_rank(PhidPhi, PhidY, T, T, 16; maximum_steps = 30, k = 0.0)
 
-X_approx1, error1 = svd_low_rank(PhidPhi, PhidY, T, T, 16; maximum_steps = 1, k = -0.3)
-X_approx1, error1 = svd_low_rank(PhidPhi, PhidY, T, T, 16; maximum_steps = 1, k = -0.2)
-X_approx1, error1 = svd_low_rank(PhidPhi, PhidY, T, T, 16; maximum_steps = 1, k = -0.1)
-X_approx2, error2 = svd_low_rank(PhidPhi, PhidY, T, T, 16; maximum_steps = 1, k = 0.0)
-X_approx3, error3 = svd_low_rank(PhidPhi, PhidY, T, T, 16; maximum_steps = 1, k = 0.1)
+X_approx2, error2 = TR_low_rank(PhidPhi, PhidY, T, T, 16; maximum_steps = 10000)
+
 
 
 # X_approx3, trunc_this3, error3 = weighted_low_rank(PhidPhi, PhidY, T, T, 16; method = "fact", maximum_steps=30, rtol=1.0e-8, verbosity = 3)
