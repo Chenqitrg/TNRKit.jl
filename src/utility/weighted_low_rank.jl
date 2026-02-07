@@ -65,39 +65,47 @@ function svd_low_rank(PhidPhi::Function, PhidY::TensorMap, X0::TensorMap, Y::Ten
     return X_update, error
 end
 
-function TR_low_rank(PhidPhi::Function, PhidY::TensorMap, X0::TensorMap, Y::TensorMap, trunc_dim::Int; μ=10, τ=100.0, ρ=1.01, μ_max=1e10, τ_max = 1e10, maximum_steps=100, verbosity = 3)
-    U, S, V = tsvd(X0; alg=TensorKit.SVD(), trunc=truncdim(1) & truncbelow(1e-14))
+function smart_tunning_function_increasing()
+    
+end
+
+function TR_low_rank(PhidPhi::Function, PhidY::TensorMap, X0::TensorMap, Y::TensorMap, trunc_dim::Int; μ=10, τ=100.0, ρ=1.01, μ_max=1e10, τ_max=1e10, maximum_steps=100, verbosity=3, initial_dim=1)
+    U, S, V = tsvd(X0; alg=TensorKit.SVD(), trunc=truncdim(initial_dim) & truncbelow(1e-14))
     X_update = U * S * V
     Λ = zeros(eltype(X0), space(X0))
     M = X_update
+    dim_this = initial_dim
 
     cost_const = tr(PhidY * Y')
     error = Inf
     for i in 1:maximum_steps
+        # μ_last = μ
         X_new, info = linsolve(x -> (τ * PhidPhi(x) + μ * x), τ * PhidY + μ * M + Λ, X_update; krylovdim=20, maxiter=100, tol=1.0e-12, verbosity=0)
-        M_new, rank = svt(X_new + (- Λ / μ), 1 / μ)
+        M_new, rank, _ = svt(X_new + (-Λ / μ), 1 / μ)
         Λ += μ * (M - X_update)
-        μ = min(μ * ρ, μ_max)
-        τ = min(μ^2, τ_max)
+        # μ = min(μ * ρ, μ_max)
+        # τ = min(μ^2, τ_max)
 
         error = (tr(X_new' * PhidPhi(X_new)) - 2 * real(tr(PhidY * X_new')) + cost_const) / cost_const
 
         residue = norm(X_new - M_new, Inf)
         relative_change = norm(X_update - X_new) / norm(X_update)
-        @infov 3 "Iteration $i: rank = $rank, error = $(round(error, digits=10)), residue = $(round(residue, digits=3)), μ = $(round(μ, digits=3)), τ = $(round(τ, digits=3)), relative_change = $(round(relative_change, digits=3))"
+        @infov 3 "Iteration $i: rank = $rank, error = $(round(error, digits=10)), residue = $(round(residue, digits=5)), μ = $(round(μ, digits=10)), τ = $(round(τ, digits=3)), relative_change = $(round(relative_change, digits=3))"
 
-        if (relative_change < 1e-8)
-            return X_new, error
+        if relative_change < 0.01 && dim_this <= trunc_dim
+            dim_this += 1
         end
 
-        if rank <= trunc_dim
-            μ = min(μ * ρ, μ_max)
-            τ = min(μ^2, τ_max)
+        if rank < trunc_dim
+            μ = min(μ + 20, μ_max)
+        elseif rank == trunc_dim
+            μ += 10
         elseif rank > trunc_dim
-            μ = μ / ρ
+            μ -= 1
         end
-        
-        
+
+        τ = min(μ^2, τ_max)
+
 
         X_update = X_new
         M = M_new
@@ -112,5 +120,14 @@ function svt(T::TensorMap, tau::Float64)
     thresholded_S = map(s -> max(s - tau, 0), S.data)
     rank_reduced = count(s -> s > 0, thresholded_S)
     new_S = DiagonalTensorMap(thresholded_S, domain(S, 1))
-    return U * new_S * V, rank_reduced
+    return U * new_S * V, rank_reduced, tau
+end
+
+function svt(T::TensorMap, trunc_dim::Int)
+    U, S, V = tsvd(T; alg=TensorKit.SVD(), trunc=truncdim(trunc_dim + 1))
+    tau = S.data[trunc_dim+1]
+    thresholded_S = map(s -> max(s - tau, 0), S.data)
+    rank_reduced = count(s -> s > 0, thresholded_S)
+    new_S = DiagonalTensorMap(thresholded_S, domain(S, 1))
+    return U * new_S * V, rank_reduced, tau
 end
