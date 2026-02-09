@@ -25,5 +25,5 @@ TT4 = T4' * T4
 PhidPhi(X::TensorMap) = transpose(Φ_left * transpose(X, ((3, 1), (4, 2))) * Φ_right, ((2, 4), (1, 3)))
 PhidY = PhidPhi(T)
 
-X_approx1, error1 = TR_low_rank(PhidPhi, PhidY, T, T, 16; maximum_steps = 2000)
+X_approx1, error1 = TR_low_rank(PhidPhi, PhidY, T, T, 16; maximum_steps = 10000)
 X_approx0, error0 = svd_low_rank(PhidPhi, PhidY, X_approx1, T, 16; maximum_steps = 30, k = 0.0)

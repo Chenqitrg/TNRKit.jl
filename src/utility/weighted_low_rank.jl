@@ -71,11 +71,7 @@ function svd_low_rank(PhidPhi::Function, PhidY::TensorMap, X0::TensorMap, Y::Ten
     return X_update, error
 end
 
-function smart_tunning_increasing()
-
-end
-
-function TR_low_rank(PhidPhi::Function, PhidY::TensorMap, X0::TensorMap, Y::TensorMap, trunc_dim::Int; ξ=1e-5, ρ=0.99, ξ_min=1e-8, maximum_steps=10000, verbosity=3)
+function TR_low_rank(PhidPhi::Function, PhidY::TensorMap, X0::TensorMap, Y::TensorMap, trunc_dim::Int; ξ=1e-4, ρ=0.99, ξ_min=1e-8, maximum_steps=10000, verbosity=3)
     X_update, _, _ = svt(X0, trunc_dim)
     Λ = zeros(eltype(X0), space(X0))
     M = copy(X_update)
@@ -83,10 +79,14 @@ function TR_low_rank(PhidPhi::Function, PhidY::TensorMap, X0::TensorMap, Y::Tens
     cost_const = tr(PhidY * Y')
     error = Inf
 
+    α_up = 1e-3
+    α_down = 1e-2
+    ε = 1e-4
+
     for i in 1:maximum_steps
         X_new, info = linsolve(x -> (PhidPhi(x) + ξ * x), PhidY + ξ * M + Λ, X_update; krylovdim=5, maxiter=20, tol=1.0e-12, verbosity=0)
         M_new, rank, _, nuclear_norm = svt(X_new + (-Λ / ξ), ξ)
-        Λ += ξ * (M_new - X_update)
+        Λ += ξ * (M_new - X_new)
 
         error_X = (tr(X_new' * PhidPhi(X_new)) - 2 * real(tr(PhidY * X_new')) + cost_const) / cost_const
         error_M = (tr(M_new' * PhidPhi(M_new)) - 2 * real(tr(PhidY * M_new')) + cost_const) / cost_const
@@ -95,15 +95,18 @@ function TR_low_rank(PhidPhi::Function, PhidY::TensorMap, X0::TensorMap, Y::Tens
         relative_change = norm(X_update - X_new) / norm(X_update)
 
         if verbosity > 1
-            @infov 3 "Iteration $i: rank = $rank, error_X = $(round(error_X, digits=10)), error_M = $(round(error_M, digits=10)), objective_function = $(round(objective_function, digits=10)), residue = $(round(residue, digits=5)), ξ = $(round(ξ, digits=7)), relative_change = $(round(relative_change, digits=3))"
+            @infov 3 "Iteration $i: rank = $rank, error_X = $(round(error_X, digits=10)), error_M = $(round(error_M, digits=10)), objective_function = $(round(objective_function, digits=10)), residue = $(round(residue, digits=5)), ξ = $(round(ξ, digits=7)), relative_change = $(round(relative_change, digits=5))"
         end
 
         if rank > trunc_dim
-            ξ = min(ξ / ρ, 1.0)
+            ξ *= exp(α_up * (rank - trunc_dim))
+        elseif rank < trunc_dim
+            ξ *= exp(α_down * (rank - trunc_dim))
         else
-            ξ = max(ξ * ρ, ξ_min)
+            ξ *= exp(+ε)
         end
-        
+
+        error = error_X
         X_update = X_new
         M = M_new
     end
