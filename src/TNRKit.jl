@@ -42,6 +42,7 @@ include("schemes/impurityhotrg.jl")
 # Loop Methods
 include("schemes/looptnr.jl")
 include("schemes/symmetric_looptnr.jl")
+include("schemes/NNRlooptnr.jl")
 export classical_ising_inv # Ising model with all legs in codomain
 
 export TNRScheme

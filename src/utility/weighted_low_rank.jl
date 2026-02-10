@@ -50,9 +50,8 @@ function one_loop_reduction(PhidPhi::Function, X0::TensorMap, trunc::TruncationS
     return U, S, V
 end
 
-function svd_low_rank(PhidPhi::Function, PhidY::TensorMap, X0::TensorMap, Y::TensorMap, trunc_dim::Int; maximum_steps=30, rtol=1e-12, verbosity=3, k=0.0, one_loop=true)
+function svd_low_rank(PhidPhi::Function, PhidY::TensorMap, X0::TensorMap, YdY::Float64, trunc_dim::Int; maximum_steps=30, rtol=1e-12, verbosity=3, k=0.0, one_loop=true)
     X_update = copy(X0)
-    cost_const = tr(PhidY * Y')
     error = Inf
 
     if one_loop
@@ -63,7 +62,7 @@ function svd_low_rank(PhidPhi::Function, PhidY::TensorMap, X0::TensorMap, Y::Ten
 
     X_init = U * S * V
     if verbosity > 1
-        @infov 3 "Initial truncation: kept rank = $(length(S.data)), error = $((tr(X_init' * PhidPhi(X_init)) - 2 * real(tr(PhidY * X_init')) + cost_const) / cost_const)"
+        @infov 3 "Initial truncation: kept rank = $(length(S.data)), error = $((tr(X_init' * PhidPhi(X_init)) - 2 * real(tr(PhidY * X_init')) + YdY) / YdY)"
     end
     for step in 1:maximum_steps
         SV = pseudopow(S, k) * V
@@ -77,7 +76,7 @@ function svd_low_rank(PhidPhi::Function, PhidY::TensorMap, X0::TensorMap, Y::Ten
         X_update = US2 * SV_new
         S4 = tsvd(SV_new; alg=TensorKit.SVD(), trunc=truncdim(trunc_dim) & truncbelow(1e-14))[2]
 
-        error_this = (tr(X_update' * PhidPhi(X_update)) - 2 * real(tr(PhidY * X_update')) + cost_const) / cost_const
+        error_this = (tr(X_update' * PhidPhi(X_update)) - 2 * real(tr(PhidY * X_update')) + YdY) / YdY
         nuclear_norm = tr(S4)
 
         if verbosity > 1
@@ -96,7 +95,7 @@ function svd_low_rank(PhidPhi::Function, PhidY::TensorMap, X0::TensorMap, Y::Ten
     return X_update, error
 end
 
-function admm_low_rank(PhidPhi::Function, PhidY::TensorMap, X0::TensorMap, Y::TensorMap, trunc_dim::Int; ξ=1e-4, maximum_steps=10000, verbosity=3)
+function admm_low_rank(PhidPhi::Function, PhidY::TensorMap, X0::TensorMap, YdY::Float64, trunc_dim::Int; ξ=1e-4, maximum_steps=10000, verbosity=3)
     X_update, _, _ = svt(X0, trunc_dim)
     Λ = zeros(eltype(X0), space(X0))
     M = copy(X_update)
@@ -113,14 +112,14 @@ function admm_low_rank(PhidPhi::Function, PhidY::TensorMap, X0::TensorMap, Y::Te
         M_new, rank, _, nuclear_norm = svt(X_new + (-Λ / ξ), ξ)
         Λ += ξ * (M_new - X_new)
 
-        error_X = (tr(X_new' * PhidPhi(X_new)) - 2 * real(tr(PhidY * X_new')) + cost_const) / cost_const
-        error_M = (tr(M_new' * PhidPhi(M_new)) - 2 * real(tr(PhidY * M_new')) + cost_const) / cost_const
+        error_X = (tr(X_new' * PhidPhi(X_new)) - 2 * real(tr(PhidY * X_new')) + YdY) / YdY
+        error_M = (tr(M_new' * PhidPhi(M_new)) - 2 * real(tr(PhidY * M_new')) + YdY) / YdY
         objective_function = error_X / 2 + ξ^2 * nuclear_norm
         residue = norm(X_new - M_new, Inf)
         relative_change = norm(X_update - X_new) / norm(X_update)
 
         if verbosity > 1
-            @infov 3 "Iteration $i: rank = $rank, error_X = $(round(error_X, digits=10)), error_M = $(round(error_M, digits=10)), objective_function = $(round(objective_function, digits=10)), residue = $(round(residue, digits=5)), ξ = $(round(ξ, digits=7)), relative_change = $(round(relative_change, digits=5))"
+            @infov 3 "Iteration $i: rank = $rank, error_X = $(round(error_X, digits=10)), error_M = $(round(error_M, digits=10)), objective function = $(round(objective_function, digits=10)), residue = $(round(residue, digits=5)), ξ = $(round(ξ, digits=7)), relative_change = $(round(relative_change, digits=5))"
         end
 
         if rank > trunc_dim
@@ -139,7 +138,7 @@ function admm_low_rank(PhidPhi::Function, PhidY::TensorMap, X0::TensorMap, Y::Te
     return X_update, error
 end
 
-function tr_low_rank_factor(PhidPhi::Function, PhidY::TensorMap, X0::TensorMap, Y::TensorMap, trunc_dim::Int; ξ=1e-4, ρ=0.99, ξ_min=1e-7, maximum_steps=2000, verbosity=3, one_loop=true)
+function tr_low_rank_factor(PhidPhi::Function, PhidY::TensorMap, X0::TensorMap, YdY::Float64, trunc_dim::Int; ξ=1e-4, ρ=0.85, tol = 1e-12, ξ_min=1e-7, maximum_steps=40, verbosity=3, one_loop=true)
     if one_loop
         U, S, V = one_loop_reduction(PhidPhi, X0, truncdim(trunc_dim))
     else
@@ -154,8 +153,9 @@ function tr_low_rank_factor(PhidPhi::Function, PhidY::TensorMap, X0::TensorMap, 
     M_V = copy(SV)
     Λ_V = zeros(eltype(SV), space(SV))
 
-    cost_const = tr(PhidY * Y')
     error = Inf
+
+    X = copy(X0)
 
     for i in 1:maximum_steps
         US_new, info = linsolve(x -> (PhidPhi(x * SV) * SV' + ξ * x), PhidY * SV' + ξ * M_U + Λ_U, US; krylovdim=20, maxiter=100, tol=1.0e-12, verbosity=0)
@@ -168,18 +168,24 @@ function tr_low_rank_factor(PhidPhi::Function, PhidY::TensorMap, X0::TensorMap, 
 
         X_new = US_new * SV_new
 
-        error_X = (tr(X_new' * PhidPhi(X_new)) - 2 * real(tr(PhidY * X_new')) + cost_const) / cost_const
+        error_X = (tr(X_new' * PhidPhi(X_new)) - 2 * real(tr(PhidY * X_new')) + YdY) / YdY
         objective_function = error_X / 2 + ξ^2 * nuclear_norm
+        relative_change = norm(X - X_new) / norm(X)
 
         if verbosity > 1
-            @infov 3 "Iteration $i: rank = $rank, error_X = $(round(error_X, digits=10)), objective_function = $(round(objective_function, digits=10)), ξ = $(round(ξ, digits=7))"
+            @infov 3 "Iteration $i: rank = $rank, error_X = $(round(error_X, digits=10)), objective function = $(round(objective_function, digits=10)), ξ = $(round(ξ, digits=7)), relative_change = $(round(relative_change, digits = 3))"
         end
 
+        last_error = error
         error = error_X
         US = US_new
         M_U = M_U_new
         SV = SV_new
         M_V = M_V_new
+
+        if relative_change < 1e-3 || error < tol || abs(last_error - error) / error < 1e-2
+            break
+        end
 
         ξ = max(ρ * ξ, ξ_min)
     end

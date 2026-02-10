@@ -385,10 +385,15 @@ function loop_opt!(
         loop_criterion::stopcrit,
         trunc::TensorKit.TruncationScheme,
         truncentanglement::TensorKit.TruncationScheme,
-        verbosity::Int
+        verbosity::Int, nuclear_norm_regularization::Bool
     )
     psiA = Ψ_A(scheme)
-    psiB = loop_opt(psiA, loop_criterion, trunc, truncentanglement, verbosity)
+    if !nuclear_norm_regularization
+        psiB = loop_opt(psiA, loop_criterion, trunc, truncentanglement, verbosity)
+    else
+        psiB = nnr_loop_opt(psiA, loop_criterion, trunc, verbosity)
+    end
+
     scheme.TA, scheme.TB = ΨB_to_TATB(psiB)
     return scheme
 end
@@ -399,10 +404,10 @@ function step!(
         truncentanglement::TensorKit.TruncationScheme,
         entanglement_criterion::stopcrit,
         loop_criterion::stopcrit,
-        verbosity::Int
+        verbosity::Int, nuclear_norm_regularization::Bool
     )
-    entanglement_filtering!(scheme, truncentanglement, entanglement_criterion)
-    loop_opt!(scheme, loop_criterion, trunc, truncentanglement, verbosity::Int)
+    !nuclear_norm_regularization && entanglement_filtering!(scheme, truncentanglement, entanglement_criterion)
+    loop_opt!(scheme, loop_criterion, trunc, truncentanglement, verbosity::Int, nuclear_norm_regularization)
     return scheme
 end
 
@@ -411,7 +416,8 @@ function run!(
         criterion::stopcrit, entanglement_criterion::stopcrit, loop_criterion::stopcrit,
         finalizer::Finalizer{E};
         finalize_beginning = true,
-        verbosity = 1
+        verbosity = 1,
+        nuclear_norm_regularization = false
     ) where {E}
     data = Vector{E}()
 
@@ -426,7 +432,7 @@ function run!(
 
         t = @elapsed while crit
             @infov 2 "Step $(steps + 1), data[end]: $(!isempty(data) ? data[end] : "empty")"
-            step!(scheme, trscheme, truncentanglement, entanglement_criterion, loop_criterion, verbosity)
+            step!(scheme, trscheme, truncentanglement, entanglement_criterion, loop_criterion, verbosity, nuclear_norm_regularization)
             push!(data, finalizer.f!(scheme))
             steps += 1
             crit = criterion(steps, data)
@@ -443,13 +449,13 @@ end
 
 function run!(
         scheme::LoopTNR, trscheme::TensorKit.TruncationScheme, criterion::stopcrit;
-        finalize_beginning = true, verbosity = 1, max_loop = 50, tol_loop = 1.0e-8
+        finalize_beginning = true, verbosity = 1, max_loop = 50, tol_loop = 1.0e-8, nuclear_norm_regularization = true
     )
     loop_criterion = maxiter(max_loop) & convcrit(tol_loop, entanglement_function)
     return run!(
         scheme, trscheme, truncbelow(1.0e-15), criterion, default_entanglement_criterion, loop_criterion;
         finalize_beginning = finalize_beginning,
-        verbosity = verbosity
+        verbosity = verbosity, nuclear_norm_regularization = nuclear_norm_regularization
     )
 end
 
