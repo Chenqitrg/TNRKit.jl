@@ -100,7 +100,6 @@ function admm_low_rank(PhidPhi::Function, PhidY::TensorMap, X0::TensorMap, YdY::
     Λ = zeros(eltype(X0), space(X0))
     M = copy(X_update)
 
-    cost_const = tr(PhidY * Y')
     error = Inf
 
     α_up = 1e-3
@@ -183,7 +182,7 @@ function tr_low_rank_factor(PhidPhi::Function, PhidY::TensorMap, X0::TensorMap, 
         SV = SV_new
         M_V = M_V_new
 
-        if relative_change < 1e-3 || error < tol || abs(last_error - error) / error < 1e-2
+        if error < tol || abs(last_error - error) / error < 1e-2
             break
         end
 

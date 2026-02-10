@@ -11,7 +11,8 @@ end
 
 function nnr_loop_opt(
     psiA::Vector{T}, loop_criterion::stopcrit,
-    trunc::TensorKit.TruncationScheme, verbosity::Int
+    trunc::TensorKit.TruncationScheme, verbosity::Int;
+    ξ_min = 1e-7, ξ_init = 1e-4, ρ = 0.85
 ) where {T<:AbstractTensorMap{E,S,1,3}} where {E,S}
     psiA_approx = copy(psiA)
     NA = length(psiA) # Number of tensors in the MPS Ψ_A
@@ -22,6 +23,8 @@ function nnr_loop_opt(
     cost = Float64[Inf]
     sweep = 0
     crit = true
+    ξ = ξ_init
+
     while crit
         right_cache_A_approx_A_approx = right_cache(psiA_approx_psiA_approx)
         right_cache_A_approx_A = right_cache(psiA_approx_psiA)
@@ -34,7 +37,7 @@ function nnr_loop_opt(
             TA_approx = transpose(psiA_approx[pos_psiA], ((2, 1), (3, 4)))
             PhidY = PhidPhi(TA, right_cache_A_approx_A[pos_psiA] * left_A_approx_A)
             right_left = right_cache_A_approx_A_approx[pos_psiA] * left_A_approx_A_approx
-            new_psiA_approx_tr, cost_this = tr_low_rank_factor(x -> PhidPhi(x, right_left), PhidY, TA_approx, YdY, trunc.dim; verbosity = verbosity)
+            new_psiA_approx_tr, cost_this = tr_low_rank_factor(x -> PhidPhi(x, right_left), PhidY, TA_approx, YdY, trunc.dim; verbosity = verbosity, ξ = ξ, ρ = ρ)
 
             new_psiA_approx = transpose(new_psiA_approx_tr, ((2,), (1, 3, 4)))
             psiA_approx[pos_psiA] = new_psiA_approx
@@ -50,6 +53,7 @@ function nnr_loop_opt(
 
             push!(cost, cost_this)
         end
+        ξ = max(ρ * ξ, ξ_min)
         sweep += 1
         
         crit = loop_criterion(sweep, cost)
