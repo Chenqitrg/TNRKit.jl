@@ -137,7 +137,7 @@ function admm_low_rank(PhidPhi::Function, PhidY::TensorMap, X0::TensorMap, YdY::
     return X_update, error
 end
 
-function tr_low_rank_factor(PhidPhi::Function, PhidY::TensorMap, X0::TensorMap, YdY::Float64, trunc_dim::Int; ξ=1e-4, ρ=0.85, tol = 1e-12, ξ_min=1e-7, maximum_steps=40, verbosity=3, one_loop=true)
+function tr_low_rank_factor(PhidPhi::Function, PhidY::TensorMap, X0::TensorMap, YdY::Float64, trunc_dim::Int; ξ=1e-4, ρ=0.8, tol = 1e-12, ξ_min=1e-7, maximum_steps=40, verbosity=3, one_loop=true)
     if one_loop
         U, S, V = one_loop_reduction(PhidPhi, X0, truncdim(trunc_dim))
     else
@@ -157,11 +157,11 @@ function tr_low_rank_factor(PhidPhi::Function, PhidY::TensorMap, X0::TensorMap, 
     X = copy(X0)
 
     for i in 1:maximum_steps
-        US_new, info = linsolve(x -> (PhidPhi(x * SV) * SV' + ξ * x), PhidY * SV' + ξ * M_U + Λ_U, US; krylovdim=20, maxiter=100, tol=1.0e-12, verbosity=0)
+        US_new, info = linsolve(x -> (PhidPhi(x * SV) * SV' + ξ * x), PhidY * SV' + ξ * M_U + Λ_U, US; krylovdim=20, maxiter=20, tol=1.0e-12, verbosity=0)
         M_U_new, rank, _, nuclear_norm = svt(US_new + (-Λ_U / ξ), ξ)
         Λ_U += ξ * (M_U_new - US_new)
 
-        SV_new, info = linsolve(x -> (US_new' * PhidPhi(US_new * x) + ξ * x), US_new' * PhidY + ξ * M_V + Λ_V, SV; krylovdim=20, maxiter=100, tol=1.0e-12, verbosity=0)
+        SV_new, info = linsolve(x -> (US_new' * PhidPhi(US_new * x) + ξ * x), US_new' * PhidY + ξ * M_V + Λ_V, SV; krylovdim=20, maxiter=20, tol=1.0e-12, verbosity=0)
         M_V_new, rank, _, nuclear_norm = svt(SV_new + (-Λ_V / ξ), ξ)
         Λ_V += ξ * (M_V_new - SV_new)
 

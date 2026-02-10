@@ -37,7 +37,7 @@ function nnr_loop_opt(
             TA_approx = transpose(psiA_approx[pos_psiA], ((2, 1), (3, 4)))
             PhidY = PhidPhi(TA, right_cache_A_approx_A[pos_psiA] * left_A_approx_A)
             right_left = right_cache_A_approx_A_approx[pos_psiA] * left_A_approx_A_approx
-            new_psiA_approx_tr, cost_this = tr_low_rank_factor(x -> PhidPhi(x, right_left), PhidY, TA_approx, YdY, trunc.dim; verbosity = verbosity, ξ = ξ, ρ = ρ)
+            new_psiA_approx_tr, cost_this = tr_low_rank_factor(x -> PhidPhi(x, right_left), PhidY, TA_approx, YdY, trunc.dim; verbosity = verbosity, ξ = ξ, ρ = ρ, maximum_steps = 1)
 
             new_psiA_approx = transpose(new_psiA_approx_tr, ((2,), (1, 3, 4)))
             psiA_approx[pos_psiA] = new_psiA_approx
