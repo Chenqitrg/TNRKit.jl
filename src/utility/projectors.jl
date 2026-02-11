@@ -2,8 +2,8 @@
 Perform SVD of `t` in the "reversed" direction such that
 `t = u * s * vh` and the arrow direction is `u → s → vh`.
 """
-function tsvd_reversed(t::AbstractTensorMap; kwargs...)
-    vh, s, u, ϵ = tsvd(transpose(t); kwargs...)
+function svd_reversed(t::AbstractTensorMap; kwargs...)
+    vh, s, u, ϵ = svd_trunc(transpose(t); kwargs...)
     u, s, vh = transpose(u), transpose(s), transpose(vh)
     @assert isdual(space(s, 1))
     return u, DiagonalTensorMap(s), vh, ϵ
@@ -28,7 +28,7 @@ function QR_L(
         ), (in_ind + out_ind,),
     )
     LT = transpose(L * transpose(T, permT), permLT)
-    _, Rt = leftorth(LT)
+    _, Rt = left_orth(LT)
     return normalize!(Rt, Inf)
 end
 
@@ -50,7 +50,7 @@ function QR_R(
         ),
     )
     TR = transpose(transpose(T, permT) * R, permTR)
-    Lt, _ = rightorth(TR)
+    Lt, _ = right_orth(TR)
     return normalize!(Lt, Inf)
 end
 
@@ -119,12 +119,12 @@ end
 # Function to find the projector P_L and P_R
 function P_decomp(
         R::TensorMap{E, S, 1, 1}, L::TensorMap{E, S, 1, 1},
-        trunc::TensorKit.TruncationScheme; reversed::Bool = false
+        trunc::MatrixAlgebraKit.TruncationStrategy; reversed::Bool = false
     ) where {E, S}
     U, s, V, _ = if reversed
-        tsvd_reversed(L * R; trunc = trunc, alg = TensorKit.SVD())
+        svd_reversed(L * R; trunc = trunc, alg = MatrixAlgebraKit.LAPACK_QRIteration())
     else
-        tsvd(L * R; trunc = trunc, alg = TensorKit.SVD())
+        svd_trunc(L * R; trunc = trunc, alg = MatrixAlgebraKit.LAPACK_QRIteration())
     end
     re_sq = pseudopow(s, -0.5)
     PR = R * V' * re_sq
@@ -135,7 +135,7 @@ end
 # Function to find the list of projectors
 function find_projectors(
         psi::Vector{T}, in_inds::Vector{Int}, out_inds::Vector{Int},
-        entanglement_criterion::stopcrit, trunc::TensorKit.TruncationScheme
+        entanglement_criterion::stopcrit, trunc::TruncationStrategy
     ) where {T <: AbstractTensorMap}
     n = length(psi)
     Ls = find_L(psi, in_inds, out_inds, entanglement_criterion)
@@ -194,14 +194,14 @@ function MPO_disentangled!(
 end
 
 function SVD12(
-        T::AbstractTensorMap{E, S, 1, 3}, trunc::TensorKit.TruncationScheme;
+        T::AbstractTensorMap{E, S, 1, 3}, trunc::MatrixAlgebraKit.TruncationStrategy;
         reversed::Bool = false
     ) where {E, S}
     T_trans = transpose(T, ((2, 1), (3, 4)); copy = true)
     U, s, V, e = if reversed
-        tsvd_reversed(T_trans; trunc = trunc, alg = TensorKit.SVD())
+        svd_reversed(T_trans; trunc = trunc, alg = MatrixAlgebraKit.LAPACK_QRIteration())
     else
-        tsvd(T_trans; trunc = trunc, alg = TensorKit.SVD())
+        svd_trunc(T_trans; trunc = trunc, alg = MatrixAlgebraKit.LAPACK_QRIteration())
     end
     @plansor S1[-1; -2 -3] := U[-2 -1; 1] * sqrt(s)[1; -3]
     @plansor S2[-1; -2 -3] := sqrt(s)[-1; 1] * V[1; -2 -3]
@@ -209,9 +209,9 @@ function SVD12(
 end
 
 function SVD12(
-        T::AbstractTensorMap{E, S, 2, 2}, trunc::TensorKit.TruncationScheme;
+        T::AbstractTensorMap{E, S, 2, 2}, trunc::MatrixAlgebraKit.TruncationStrategy;
         reversed::Bool = false
     ) where {E, S}
-    U, s, V, e = reversed ? tsvd_reversed(T; trunc) : tsvd(T; trunc)
+    U, s, V, e = reversed ? svd_reversed(T; trunc = trunc) : svd_trunc(T; trunc = trunc)
     return U * sqrt(s), sqrt(s) * V
 end

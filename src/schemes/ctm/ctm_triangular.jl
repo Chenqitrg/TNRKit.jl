@@ -2,7 +2,7 @@
 # https://arxiv.org/pdf/2510.04907
 
 function run!(
-        scheme::CTM_triangular, trunc::TensorKit.TruncationScheme, criterion::stopcrit;
+        scheme::CTM_triangular, trunc::MatrixAlgebraKit.TruncationStrategy, criterion::stopcrit;
         projectors = :twothirds,
         conditioning = true,
         verbosity = 1
@@ -64,7 +64,7 @@ function calculate_twothirds_projectors(scheme, trunc)
         @tensor ρρ[-1 -2; -3 -4] := ρL[-1 -2; 1 2] * flip(ρR, 2; inv = false)[1 2; -3 -4]
         ρρ /= norm(ρρ)
 
-        U, S, V = tsvd(ρρ; trunc = trunc & truncbelow(1.0e-20), alg = TensorKit.SVD())
+        U, S, V = svd_trunc(ρρ; trunc = trunc, alg = MatrixAlgebraKit.LAPACK_QRIteration())
 
         Pb = ρR * V' * pseudopow(S, -1 / 2)
         Pa = pseudopow(S, -1 / 2) * U' * ρL
@@ -84,14 +84,14 @@ function calculate_full_projectors(scheme, trunc)
         ρR = build_double_corner_matrix_triangular(scheme, mod1(dir + 1, 6))
         ρ̄ = build_double_corner_matrix_triangular(scheme, mod1(dir + 3, 6))
         ρ̄ /= norm(ρ̄)
-        Ū, S̄, V̄ᴴ = tsvd(ρ̄; trunc = truncbelow(1.0e-20), alg = TensorKit.SVD())
+        Ū, S̄, V̄ᴴ = svd_trunc(ρ̄; trunc = trunc, alg = MatrixAlgebraKit.LAPACK_QRIteration())
         ρ̄ᴿ = Ū * sqrt(S̄)
         ρ̄ᴸ = sqrt(S̄) * V̄ᴴ
         @tensor ρρ[-1; -2] := ρ̄ᴸ[-1; 1 2] * flip(ρL, 2; inv = false)[1 2; 3 4] * flip(ρR, 2; inv = false)[3 4; 5 6] * flip(ρ̄ᴿ, 2; inv = false)[5 6; -2]
         ρρ /= norm(ρρ)
 
 
-        U, S, Vᴴ = tsvd(ρρ; trunc = trunc & truncbelow(1.0e-20), alg = TensorKit.SVD())
+        U, S, Vᴴ = svd_trunc(ρρ; trunc = trunc, alg = MatrixAlgebraKit.LAPACK_QRIteration())
 
         @tensor Pb[-1 -2; -3] := ρR[-1 -2; 1 2] * flip(ρ̄ᴿ, 2)[1 2; 3] * Vᴴ'[3; 4] * pseudopow(S, -1 / 2)[4; -3]
         @tensor Pa[-1; -2 -3] := pseudopow(S, -1 / 2)[-1; 1] * U'[1; 2] * ρ̄ᴸ[2; 3 4] * flip(ρL, 2)[3 4; -2 -3]
@@ -125,7 +125,7 @@ end
 
 function build_double_corner_matrix_triangular(scheme::CTM_triangular, dir::Int)
     @tensor opt = true mat[-1 -2; -3 -4] := scheme.C[dir][6 5; 1] * scheme.C[mod1(dir + 1, 6)][1 3; 2] *
-        scheme.Ea[mod1(dir - 1, 6)][-1 7; 6] * scheme.Eb[mod1(dir + 2, 6)][2 4; -3] * scheme.T[5 3 4 -4 -2 7]
+        scheme.Ea[mod1(dir - 1, 6)][-1 7; 6] * scheme.Eb[mod1(dir + 1, 6)][2 4; -3] * scheme.T[5 3 4 -4 -2 7]
     return mat
 end
 
@@ -139,12 +139,12 @@ function semi_renormalize(scheme::CTM_triangular, Pas, Pbs, trunc)
             scheme.Ea[dir][1 3; 4] * scheme.Eb[dir][4 5; 6] * flip(scheme.T, (3, 4, 5, 6); inv = false)[3 5 7 -4 -2 2]
         mat /= norm(mat)
 
-        U, S, V = tsvd(mat; trunc = truncbelow(1.0e-20), alg = TensorKit.SVD())
+        U, S, V = svd_trunc(mat; trunc = trunctol(; atol = 1.0e-20), alg = MatrixAlgebraKit.LAPACK_QRIteration())
 
         Ẽb = U * sqrt(S)
         Ẽa = permute(sqrt(S) * V, ((1, 3), (2,)))
 
-        Utr, Str, Vtr = tsvd(mat; trunc = trunc & truncbelow(1.0e-20), alg = TensorKit.SVD())
+        Utr, Str, Vtr = svd_trunc(mat; trunc = trunc & trunctol(; atol = 1.0e-20), alg = MatrixAlgebraKit.LAPACK_QRIteration())
         Ẽbtr = Utr * sqrt(Str)
         Ẽatr = permute(sqrt(Str) * Vtr, ((1, 3), (2,)))
 
@@ -168,22 +168,22 @@ function build_matrix_second_projectors(scheme::CTM_triangular, Ẽas, Ẽbs, E�
         if conditioning
             σL /= norm(σL)
             σR /= norm(σR)
-            UL, SL, VLᴴ = tsvd(σL; trunc = truncbelow(1.0e-20), alg = TensorKit.SVD())
-            UR, SR, VRᴴ = tsvd(σR; trunc = truncbelow(1.0e-20), alg = TensorKit.SVD())
+            UL, SL, VLᴴ = svd_trunc(σL; trunc = trunc, alg = MatrixAlgebraKit.LAPACK_QRIteration())
+            UR, SR, VRᴴ = svd_trunc(σR; trunc = trunc, alg = MatrixAlgebraKit.LAPACK_QRIteration())
 
             FLU = sqrt(SL) * VLᴴ
             FRU = UR * sqrt(SR)
 
             mat = FLU * FRU
             mat /= norm(mat)
-            WU, SU, QUᴴ = tsvd(mat; trunc = trunc & truncbelow(1.0e-20), alg = TensorKit.SVD())
+            WU, SU, QUᴴ = svd_trunc(mat; trunc = trunc, alg = MatrixAlgebraKit.LAPACK_QRIteration())
 
             Qa = pseudopow(SU, -1 / 2) * WU' * FLU
             Qb = FRU * QUᴴ' * pseudopow(SU, -1 / 2)
         else
             mat = σL * σR
             mat /= norm(mat)
-            U, S, V = tsvd(mat; trunc = trunc & truncbelow(1.0e-20), alg = TensorKit.SVD())
+            U, S, V = svd_trunc(mat; trunc = trunc, alg = MatrixAlgebraKit.LAPACK_QRIteration())
             Qa = pseudopow(S, -1 / 2) * U' * σL
             Qb = σR * V' * pseudopow(S, -1 / 2)
         end

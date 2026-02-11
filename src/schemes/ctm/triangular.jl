@@ -62,9 +62,9 @@ end
 function CTM_triangular_init(T::TensorMap{A, S, 0, 6}, vspace) where {A, S}
     S_type = scalartype(T)
     Vp = space(T)[1]'
-    C = fill(TensorMap(ones, S_type, vspace ⊗ Vp ← vspace), 6)
-    Ea = fill(TensorMap(ones, S_type, vspace ⊗ Vp ← vspace), 6)
-    Eb = fill(TensorMap(ones, S_type, vspace ⊗ Vp ← vspace), 6)
+    C = fill(ones(S_type, vspace ⊗ Vp ← vspace), 6)
+    Ea = fill(ones(S_type, vspace ⊗ Vp ← vspace), 6)
+    Eb = fill(ones(S_type, vspace ⊗ Vp ← vspace), 6)
     return C, Ea, Eb
 end
 
@@ -93,7 +93,7 @@ or with a (0,6) tensor (120°, 60°, 0°, 300°, 240°, 180°) where all arrows 
 The keyword argument symmetrize makes the tensor C6v symmetric when set to true. If symmetrize = false, it checks the symmetry explicitly.
 
 ### Running the algorithm
-    run!(::c6vCTM, trunc::TensorKit.TruncationScheme, stop::Stopcrit[, finalize_beginning=true, projectors=:twothirds, conditioning=true, verbosity=1])
+    run!(::c6vCTM, trunc::MatrixAlgebraKit.TruncationStrategy, stop::Stopcrit[, finalize_beginning=true, projectors=:twothirds, conditioning=true, verbosity=1])
 
 `projectors` can either be :twothirds or :full, determining the type of projectors used in the renormalization step. This is based on https://arxiv.org/abs/2510.04907v1.
 `conditioning` determines whether to condition the second projector construction. This is based on https://doi.org/10.1103/PhysRevB.98.235148.
@@ -159,8 +159,8 @@ end
 function c6vCTM_triangular_init(T::TensorMap{A, S, 0, 6}) where {A, S}
     S_type = scalartype(T)
     Vp = space(T)[1]'
-    C = TensorMap(ones, S_type, oneunit(Vp) ⊗ Vp ← oneunit(Vp))
-    Ea = TensorMap(ones, S_type, oneunit(Vp) ⊗ Vp ← oneunit(Vp))
-    Eb = TensorMap(ones, S_type, oneunit(Vp) ⊗ Vp ← oneunit(Vp))
+    C = ones(S_type, oneunit(Vp) ⊗ Vp ← oneunit(Vp))
+    Ea = ones(S_type, oneunit(Vp) ⊗ Vp ← oneunit(Vp))
+    Eb = ones(S_type, oneunit(Vp) ⊗ Vp ← oneunit(Vp))
     return C, Ea, Eb
 end
