@@ -342,7 +342,7 @@ function loop_opt(
     psiA::Vector{T}, loop_criterion::stopcrit,
     trunc::TensorKit.TruncationScheme,
     truncentanglement::TensorKit.TruncationScheme, verbosity::Int; nuclear_norm_regularization=false,
-    ξ_min=1e-7, ξ_init=1e-4, ρ=0.8
+    ξ_min=1e-7, ξ_init=1e-5, ρ=0.8
 ) where {T<:AbstractTensorMap{E,S,1,3}} where {E,S}
     if nuclear_norm_regularization
         psiB = Ψ_B(psiA, trunc)
@@ -411,10 +411,6 @@ function loop_opt(
                 left_BA = left_BA * BA_temp # Update the left transfer matrix for ΨBΨA
             end
         end
-        sweep += 1
-        if nuclear_norm_regularization
-            ξ = max(ρ * ξ, ξ_min)
-        end
 
         tNt = tr(left_BB)
         tdw = tr(left_BA)
@@ -428,6 +424,11 @@ function loop_opt(
             else
                 @infov 3 "Sweep: $sweep, Cost: $(cost[end]), Time: $(time() - t_start)s, ξ: $ξ"
             end
+        end
+
+        sweep += 1
+        if nuclear_norm_regularization
+            ξ = max(ρ * ξ, ξ_min)
         end
     end
 
@@ -460,10 +461,10 @@ function loop_opt!(
     loop_criterion::stopcrit,
     trunc::TensorKit.TruncationScheme,
     truncentanglement::TensorKit.TruncationScheme,
-    verbosity::Int, nuclear_norm_regularization::Bool
+    verbosity::Int, nuclear_norm_regularization::Bool; ρ = 0.8, ξ_init = 1e-5, ξ_min = 1e-7
 )
     psiA = Ψ_A(scheme)
-    psiB = loop_opt(psiA, loop_criterion, trunc, truncentanglement, verbosity; nuclear_norm_regularization=nuclear_norm_regularization)
+    psiB = loop_opt(psiA, loop_criterion, trunc, truncentanglement, verbosity; nuclear_norm_regularization=nuclear_norm_regularization, ρ = ρ, ξ_init = ξ_init, ξ_min = ξ_min)
 
     scheme.TA, scheme.TB = ΨB_to_TATB(psiB)
     return scheme
@@ -475,10 +476,10 @@ function step!(
     truncentanglement::TensorKit.TruncationScheme,
     entanglement_criterion::stopcrit,
     loop_criterion::stopcrit,
-    verbosity::Int, nuclear_norm_regularization::Bool
+    verbosity::Int, nuclear_norm_regularization::Bool; ρ = 0.8, ξ_init = 1e-5, ξ_min = 1e-7
 )
     !nuclear_norm_regularization && entanglement_filtering!(scheme, truncentanglement, entanglement_criterion)
-    loop_opt!(scheme, loop_criterion, trunc, truncentanglement, verbosity::Int, nuclear_norm_regularization)
+    loop_opt!(scheme, loop_criterion, trunc, truncentanglement, verbosity::Int, nuclear_norm_regularization; ρ = ρ, ξ_init = ξ_init, ξ_min = ξ_min)
     return scheme
 end
 
@@ -488,7 +489,8 @@ function run!(
     finalizer::Finalizer{E};
     finalize_beginning=true,
     verbosity=1,
-    nuclear_norm_regularization=false
+    nuclear_norm_regularization=false,
+    ρ = 0.8, ξ_init = 1e-5, ξ_min = 1e-7
 ) where {E}
     data = Vector{E}()
 
@@ -503,7 +505,7 @@ function run!(
 
         t = @elapsed while crit
             @infov 2 "Step $(steps + 1), data[end]: $(!isempty(data) ? data[end] : "empty")"
-            step!(scheme, trscheme, truncentanglement, entanglement_criterion, loop_criterion, verbosity, nuclear_norm_regularization)
+            step!(scheme, trscheme, truncentanglement, entanglement_criterion, loop_criterion, verbosity, nuclear_norm_regularization; ρ = ρ, ξ_init = ξ_init, ξ_min = ξ_min)
             push!(data, finalizer.f!(scheme))
             steps += 1
             crit = criterion(steps, data)
