@@ -342,7 +342,7 @@ function loop_opt(
     psiA::Vector{T}, loop_criterion::stopcrit,
     trunc::TensorKit.TruncationScheme,
     truncentanglement::TensorKit.TruncationScheme, verbosity::Int; nuclear_norm_regularization=false,
-    ξ_min=1e-7, ξ_init=1e-4, ρ=0.85
+    ξ_min=1e-7, ξ_init=1e-4, ρ=0.8
 ) where {T<:AbstractTensorMap{E,S,1,3}} where {E,S}
     if nuclear_norm_regularization
         psiB = Ψ_B(psiA, trunc)
