@@ -22,18 +22,18 @@ $(TYPEDFIELDS)
 * [Yang et. al. Phys. Rev. Letters 118 (2017)](@cite yangLoopOptimizationTensor2017)
 
 """
-mutable struct LoopTNR{E, S, TT <: AbstractTensorMap{E, S, 2, 2}} <: TNRScheme{E, S}
+mutable struct LoopTNR{E,S,TT<:AbstractTensorMap{E,S,2,2}} <: TNRScheme{E,S}
     "Central tensor on sublattice A"
     TA::TT
 
     "Central tensor on sublattice B"
     TB::TT
 
-    function LoopTNR(TA::TT, TB::TT) where {E, S, TT <: AbstractTensorMap{E, S, 2, 2}}
-        return new{E, S, TT}(TA, TB)
+    function LoopTNR(TA::TT, TB::TT) where {E,S,TT<:AbstractTensorMap{E,S,2,2}}
+        return new{E,S,TT}(TA, TB)
     end
-    function LoopTNR(T::TT) where {E, S, TT <: AbstractTensorMap{E, S, 2, 2}}
-        return new{E, S, TT}(T, copy(T))
+    function LoopTNR(T::TT) where {E,S,TT<:AbstractTensorMap{E,S,2,2}}
+        return new{E,S,TT}(T, copy(T))
     end
 end
 
@@ -50,38 +50,38 @@ by first performing one round of loop optimization to reduce
 the network to a bipartite one (without normalization). 
 """
 function LoopTNR(
-        unitcell_2x2::Matrix{T};
-        loop_criterion::stopcrit,
-        trunc::TensorKit.TruncationScheme,
-        truncentanglement::TensorKit.TruncationScheme,
-    ) where {T <: AbstractTensorMap{<:Number, <:VectorSpace, 2, 2}}
+    unitcell_2x2::Matrix{T};
+    loop_criterion::stopcrit,
+    trunc::TensorKit.TruncationScheme,
+    truncentanglement::TensorKit.TruncationScheme,
+) where {T<:AbstractTensorMap{<:Number,<:VectorSpace,2,2}}
     ψA = Ψ_A(unitcell_2x2)
     ψB = loop_opt(ψA, loop_criterion, trunc, truncentanglement, 0)
     TA, TB = ΨB_to_TATB(ψB)
     return LoopTNR(TA, TB)
 end
 
-function _check_dual(T::AbstractTensorMap{E, S, 2, 2}) where {E, S}
+function _check_dual(T::AbstractTensorMap{E,S,2,2}) where {E,S}
     return [isdual(space(T, ax)) for ax in 1:4] == [0, 0, 1, 1]
 end
 
 # Function to initialize the list of tensors Ψ_A, making it an MPS on a ring
-function Ψ_A(unitcell_2x2::Matrix{<:AbstractTensorMap{E, S, 2, 2}}) where {E, S}
+function Ψ_A(unitcell_2x2::Matrix{<:AbstractTensorMap{E,S,2,2}}) where {E,S}
     size(unitcell_2x2) == (2, 2) || error("Input unit cell must have 2 x 2 size.")
     ΨA = [
-        transpose(unitcell_2x2[1, 1], ((2,), (1, 3, 4)); copy = true),
-        transpose(unitcell_2x2[1, 2], ((1,), (3, 4, 2)); copy = true),
-        transpose(unitcell_2x2[2, 2], ((3,), (4, 2, 1)); copy = true),
-        transpose(unitcell_2x2[2, 1], ((4,), (2, 1, 3)); copy = true),
+        transpose(unitcell_2x2[1, 1], ((2,), (1, 3, 4)); copy=true),
+        transpose(unitcell_2x2[1, 2], ((1,), (3, 4, 2)); copy=true),
+        transpose(unitcell_2x2[2, 2], ((3,), (4, 2, 1)); copy=true),
+        transpose(unitcell_2x2[2, 1], ((4,), (2, 1, 3)); copy=true),
     ]
     return ΨA
 end
-function Ψ_A(TA::AbstractTensorMap{E, S, 2, 2}, TB::AbstractTensorMap{E, S, 2, 2}) where {E, S}
+function Ψ_A(TA::AbstractTensorMap{E,S,2,2}, TB::AbstractTensorMap{E,S,2,2}) where {E,S}
     ΨA = [
-        transpose(TA, ((2,), (1, 3, 4)); copy = true),
-        transpose(TB, ((1,), (3, 4, 2)); copy = true),
-        transpose(TA, ((3,), (4, 2, 1)); copy = true),
-        transpose(TB, ((4,), (2, 1, 3)); copy = true),
+        transpose(TA, ((2,), (1, 3, 4)); copy=true),
+        transpose(TB, ((1,), (3, 4, 2)); copy=true),
+        transpose(TA, ((3,), (4, 2, 1)); copy=true),
+        transpose(TB, ((4,), (2, 1, 3)); copy=true),
     ]
     return ΨA
 end
@@ -90,7 +90,7 @@ function Ψ_A(scheme::LoopTNR)
 end
 
 # Function to construct MPS Ψ_B from MPS Ψ_A. Using a large cut-off dimension in SVD but a small cut-off dimension in loop to increase the precision of initialization.
-function Ψ_B(ΨA::Vector{<:AbstractTensorMap{E, S, 1, 3}}, trunc::TensorKit.TruncationScheme, truncentanglement::TensorKit.TruncationScheme) where {E, S}
+function Ψ_B(ΨA::Vector{<:AbstractTensorMap{E,S,1,3}}, trunc::TensorKit.TruncationScheme, truncentanglement::TensorKit.TruncationScheme) where {E,S}
     NA = length(ΨA)
     _trunc = truncdim(trunc.dim * 2)
     #= 
@@ -105,10 +105,10 @@ function Ψ_B(ΨA::Vector{<:AbstractTensorMap{E, S, 1, 3}}, trunc::TensorKit.Tru
             |     |
     =#
     ΨB = [
-        collect(SVD12(ΨA[1], _trunc; reversed = true));
-        collect(SVD12(ΨA[2], _trunc; reversed = true));
+        collect(SVD12(ΨA[1], _trunc; reversed=true));
+        collect(SVD12(ΨA[2], _trunc; reversed=true));
         collect(SVD12(ΨA[3], _trunc));
-        collect(SVD12(ΨA[4], _trunc));
+        collect(SVD12(ΨA[4], _trunc))
     ]
 
     ΨB_function(steps, data) = abs(data[end])
@@ -122,13 +122,37 @@ function Ψ_B(ΨA::Vector{<:AbstractTensorMap{E, S, 1, 3}}, trunc::TensorKit.Tru
     return ΨB
 end
 
+function Ψ_B(ΨA::Vector{<:AbstractTensorMap{E,S,1,3}}, trunc::TensorKit.TruncationScheme) where {E,S}
+    NA = length(ΨA)
+    _trunc = truncdim(trunc.dim * 2)
+    #= 
+            |     |
+            2 --- 3
+          ↗         ↘
+    --- 1             4 ---
+        |             |
+    --- 8             5 ---
+          ↘         ↗
+            7 --- 6
+            |     |
+    =#
+    ΨB = [
+        collect(SVD12(ΨA[1], _trunc; reversed=true));
+        collect(SVD12(ΨA[2], _trunc; reversed=true));
+        collect(SVD12(ΨA[3], _trunc));
+        collect(SVD12(ΨA[4], _trunc))
+    ]
+
+    return ΨB
+end
+
 # Construct the list of transfer matrices for ΨAΨA
 # ---1'--A--3'---
 #       | |
 #       1 2
 #       | |
 # ---2'--A--4'---
-function ΨAΨA(ΨA::Vector{<:AbstractTensorMap{E, S, 1, 3}}) where {E, S}
+function ΨAΨA(ΨA::Vector{<:AbstractTensorMap{E,S,1,3}}) where {E,S}
     return map(ΨA) do A
         return @plansor AA[-1 -2; -3 -4] := A[-2; 1 2 -4] * conj(A[-1; 1 2 -3])
     end
@@ -140,7 +164,7 @@ end
 #        1
 #        |
 # ---2'--B--4'---
-function ΨBΨB(ΨB::Vector{<:AbstractTensorMap{E, S, 1, 2}}) where {E, S}
+function ΨBΨB(ΨB::Vector{<:AbstractTensorMap{E,S,1,2}}) where {E,S}
     return map(ΨB) do B
         return @plansor BB[-1 -2; -3 -4] := B[-2; 1 -4] * conj(B[-1; 1 -3])
     end
@@ -152,11 +176,11 @@ end
 #        1   2
 #         | |
 # ---2'----A----4'---
-function ΨBΨA(ΨB::Vector{<:AbstractTensorMap{E, S, 1, 2}}, ΨA::Vector{<:AbstractTensorMap{E, S, 1, 3}}) where {E, S}
+function ΨBΨA(ΨB::Vector{<:AbstractTensorMap{E,S,1,2}}, ΨA::Vector{<:AbstractTensorMap{E,S,1,3}}) where {E,S}
     @assert length(ΨB) == 2 * length(ΨA)
     return map(eachindex(ΨA)) do i
-        return @plansor temp[-1 -2; -3 -4] := conj(ΨB[2 * i - 1][-1; 1 3]) *
-            ΨA[i][-2; 1 2 -4] * conj(ΨB[2 * i][3; 2 -3])
+        return @plansor temp[-1 -2; -3 -4] := conj(ΨB[2*i-1][-1; 1 3]) *
+                                              ΨA[i][-2; 1 2 -4] * conj(ΨB[2*i][3; 2 -3])
     end
 end
 
@@ -165,14 +189,18 @@ function to_number(tensors::Vector{<:AbstractTensorMap})
     return tr(reduce(*, tensors))
 end
 
+function to_M(psiB::Vector{<:AbstractTensorMap{E,S,1,2}}) where {E,S}
+    return [isodd(i) ? transpose(B, ((2, 1), (3,))) : B for (i, B) in enumerate(psiB)]
+end
+
 #Entanglement Filtering
 entanglement_function(steps, data) = abs(data[end])
 default_entanglement_criterion = maxiter(100) & convcrit(1.0e-15, entanglement_function)
 
 function _entanglement_filtering(
-        TA::AbstractTensorMap{E, S, 2, 2}, TB::AbstractTensorMap{E, S, 2, 2},
-        entanglement_criterion::stopcrit, trunc::TensorKit.TruncationScheme
-    ) where {E, S}
+    TA::AbstractTensorMap{E,S,2,2}, TB::AbstractTensorMap{E,S,2,2},
+    entanglement_criterion::stopcrit, trunc::TensorKit.TruncationScheme
+) where {E,S}
     ΨA = Ψ_A(TA, TB)
     PRs, PLs = find_projectors(
         ΨA, [1, 1, 1, 1], [3, 3, 3, 3],
@@ -186,10 +214,10 @@ end
 
 # Entanglement filtering function
 function entanglement_filtering!(
-        scheme::LoopTNR,
-        trunc::TensorKit.TruncationScheme,
-        entanglement_criterion::stopcrit = default_entanglement_criterion
-    )
+    scheme::LoopTNR,
+    trunc::TensorKit.TruncationScheme,
+    entanglement_criterion::stopcrit=default_entanglement_criterion
+)
     scheme.TA, scheme.TB = _entanglement_filtering(
         scheme.TA, scheme.TB, entanglement_criterion, trunc
     )
@@ -199,24 +227,24 @@ end
 # Optimisation functions
 
 # Function to compute the half of the matrix N by inputting the left and right SS transfer matrices
-function tN(SS_left::AbstractTensorMap{E, S, 2, 2}, SS_right::AbstractTensorMap{E, S, 2, 2}) where {E, S}
+function tN(SS_left::AbstractTensorMap{E,S,2,2}, SS_right::AbstractTensorMap{E,S,2,2}) where {E,S}
     return SS_right * SS_left
 end
 
 # Function to compute the vector W for a given position in the loop
 function tW(
-        pos::Int, psiA::Vector{TA}, psiB::Vector{TB},
-        TSS_left::AbstractTensorMap{E, S, 2, 2}, TSS_right::AbstractTensorMap{E, S, 2, 2}
-    ) where {
-        TA <: AbstractTensorMap{<:Any, <:Any, 1, 3},
-        TB <: AbstractTensorMap{<:Any, <:Any, 1, 2}, E, S,
-    }
-    ΨA = psiA[(pos - 1) ÷ 2 + 1]
+    pos::Int, psiA::Vector{TA}, psiB::Vector{TB},
+    TSS_left::AbstractTensorMap{E,S,2,2}, TSS_right::AbstractTensorMap{E,S,2,2}
+) where {
+    TA<:AbstractTensorMap{<:Any,<:Any,1,3},
+    TB<:AbstractTensorMap{<:Any,<:Any,1,2},E,S,
+}
+    ΨA = psiA[(pos-1)÷2+1]
 
     tmp = TSS_right * TSS_left
 
     if iseven(pos)
-        ΨB = psiB[pos - 1]
+        ΨB = psiB[pos-1]
         #--2---ΨB--1'-   --2'---------2--
         #      |       |         |
         #      4       3'        t
@@ -226,7 +254,7 @@ function tW(
         #---3------ΨA------1----------3--
         @plansor W[-1; -3 -2] := conj(ΨB[2; 4 -1]) * ΨA[3; 4 -3 1] * tmp[-2 1; 2 3]
     else
-        ΨB = psiB[pos + 1]
+        ΨB = psiB[pos+1]
         #-1'--   --2'--ΨB--2----------1'-
         #      |       |         |
         #      3'      4         t
@@ -242,9 +270,9 @@ end
 
 # Function to optimize the tensor T for a given position in the loop by the Krylov method
 function opt_T(
-        N::AbstractTensorMap{E, S, 2, 2}, W::AbstractTensorMap{E, S, 1, 2},
-        psi::AbstractTensorMap{E, S, 1, 2}
-    ) where {E, S}
+    N::AbstractTensorMap{E,S,2,2}, W::AbstractTensorMap{E,S,1,2},
+    psi::AbstractTensorMap{E,S,1,2}
+) where {E,S}
     function apply_f(x::TensorMap)
         #-----1'--   --2'------------1'--
         #          |            |
@@ -257,8 +285,31 @@ function opt_T(
         return b
     end
     new_T, info = linsolve(
-        apply_f, W, psi; krylovdim = 20, maxiter = 20, tol = 1.0e-12,
-        verbosity = 0
+        apply_f, W, psi; krylovdim=20, maxiter=20, tol=1.0e-12,
+        verbosity=0
+    )
+    return new_T
+end
+
+function opt_T_nuclear_norm(
+    N::AbstractTensorMap{E,S,2,2}, W::AbstractTensorMap{E,S,1,2}, Λ::AbstractTensorMap{E,S,1,2}, M::AbstractTensorMap{E,S,1,2}, ξ::Float64,
+    psi::AbstractTensorMap{E,S,1,2}
+) where {E,S}
+    function apply_f(x::TensorMap)
+        #-----1'--   --2'------------1'--
+        #          |            |
+        #          3'           |
+        #          |            N
+        #          |            |
+        #          |            |
+        #---1------x-------2---------1---
+        @plansor b[-1; -3 -2] := N[-2 2; -1 1] * x[1; -3 2]
+        return b + ξ * x
+    end
+    b = W + ξ * M + Λ
+    new_T, info = linsolve(
+        apply_f, b, psi; krylovdim=20, maxiter=20, tol=1.0e-12,
+        verbosity=0
     )
     return new_T
 end
@@ -270,13 +321,13 @@ end
 # ...
 # cache[7] = T8
 # cache[8] = I
-function right_cache(transfer_mats::Vector{T}) where {T <: AbstractTensorMap{E, S, 2, 2}} where {E, S}
+function right_cache(transfer_mats::Vector{T}) where {T<:AbstractTensorMap{E,S,2,2}} where {E,S}
     n = length(transfer_mats)
     cache = similar(transfer_mats)
     cache[end] = id(E, domain(transfer_mats[end]))
 
-    for i in (n - 1):-1:1
-        cache[i] = transfer_mats[i + 1] * cache[i + 1]
+    for i in (n-1):-1:1
+        cache[i] = transfer_mats[i+1] * cache[i+1]
     end
 
     return cache
@@ -288,11 +339,20 @@ end
 # The transfer matrix on the left is updated after each optimization step.
 # The cache technique is from Chenfeng Bao's thesis, see http://hdl.handle.net/10012/14674.
 function loop_opt(
-        psiA::Vector{T}, loop_criterion::stopcrit,
-        trunc::TensorKit.TruncationScheme,
-        truncentanglement::TensorKit.TruncationScheme, verbosity::Int
-    ) where {T <: AbstractTensorMap{E, S, 1, 3}} where {E, S}
-    psiB = Ψ_B(psiA, trunc, truncentanglement)
+    psiA::Vector{T}, loop_criterion::stopcrit,
+    trunc::TensorKit.TruncationScheme,
+    truncentanglement::TensorKit.TruncationScheme, verbosity::Int; nuclear_norm_regularization=false,
+    ξ_min=1e-7, ξ_init=1e-4, ρ=0.85
+) where {T<:AbstractTensorMap{E,S,1,3}} where {E,S}
+    if nuclear_norm_regularization
+        psiB = Ψ_B(psiA, trunc)
+        M = copy(psiB)
+        Λ = map(x -> zeros(E, space(x)), psiB)
+        ξ = ξ_init
+    else
+        psiB = Ψ_B(psiA, trunc, truncentanglement)
+    end
+
     NB = length(psiB) # Number of tensors in the MPS Ψ_B
     psiBpsiB = ΨBΨB(psiB)
     psiBpsiA = ΨBΨA(psiB, psiA)
@@ -325,25 +385,36 @@ function loop_opt(
 
             N = tN(left_BB, right_cache_BB[pos_psiB]) # Compute the half of the matrix N for the current position in the loop, right cache is used to minimize the number of multiplications
             W = tW(pos_psiB, psiA, psiB, left_BA, right_cache_BA[pos_psiA]) # Compute the vector W for the current position in the loop, using the right cache for ΨBΨA
+            if !nuclear_norm_regularization
+                psiB[pos_psiB] = opt_T(N, W, psiB[pos_psiB]) # Optimize the tensor T for the current position in the loop, with the psiB[pos_psiB] be the initial guess
+            else
+                psiB[pos_psiB] = opt_T_nuclear_norm(N, W, Λ[pos_psiB], M[pos_psiB], ξ, psiB[pos_psiB])
+                if iseven(pos_psiB)
+                    M[pos_psiB], rank, _, nuclear_norm1 = svt(psiB[pos_psiB] + (-Λ[pos_psiB] / ξ), ξ)
+                else
+                    new_M_transp, rank, _, nuclear_norm1 = svt(transpose(psiB[pos_psiB], ((2, 1), (3,))) + (-transpose(Λ[pos_psiB], ((2, 1), (3,))) / ξ), ξ)
+                    M[pos_psiB] = transpose(new_M_transp, ((2,), (1, 3)))
+                end
+                Λ[pos_psiB] += ξ * (M[pos_psiB] - psiB[pos_psiB])
+            end
 
-            new_psiB = opt_T(N, W, psiB[pos_psiB]) # Optimize the tensor T for the current position in the loop, with the psiB[pos_psiB] be the initial guess
-
-            psiB[pos_psiB] = new_psiB # Update a single local tensor in the MPS Ψ_B
-
-            @plansor BB_temp[-1 -2; -3 -4] := new_psiB[-2; 1 -4] * conj(new_psiB[-1; 1 -3])
+            @plansor BB_temp[-1 -2; -3 -4] := psiB[pos_psiB][-2; 1 -4] * conj(psiB[pos_psiB][-1; 1 -3])
             psiBpsiB[pos_psiB] = BB_temp # Update the transfer matrix for ΨBΨB
             left_BB = left_BB * BB_temp # Update the left transfer matrix for ΨBΨB
 
             if iseven(pos_psiB) # If the position is even, we also update the transfer matrix for ΨBΨA
                 @plansor BA_temp[-1 -2; -3 -4] :=
-                    conj(psiB[2 * pos_psiA - 1][-1; 1 3]) *
+                    conj(psiB[2*pos_psiA-1][-1; 1 3]) *
                     psiA[pos_psiA][-2; 1 2 -4] *
-                    conj(psiB[2 * pos_psiA][3; 2 -3])
+                    conj(psiB[2*pos_psiA][3; 2 -3])
                 psiBpsiA[pos_psiA] = BA_temp # Update the transfer matrix for ΨBΨA
                 left_BA = left_BA * BA_temp # Update the left transfer matrix for ΨBΨA
             end
         end
         sweep += 1
+        if nuclear_norm_regularization
+            ξ = max(ρ * ξ, ξ_min)
+        end
 
         tNt = tr(left_BB)
         tdw = tr(left_BA)
@@ -352,7 +423,11 @@ function loop_opt(
         push!(cost, cost_this)
         crit = loop_criterion(sweep, cost)
         if verbosity > 1
-            @infov 3 "Sweep: $sweep, Cost: $(cost[end]), Time: $(time() - t_start)s" # Included the time taken for the sweep
+            if !nuclear_norm_regularization
+                @infov 3 "Sweep: $sweep, Cost: $(cost[end]), Time: $(time() - t_start)s" # Included the time taken for the sweep
+            else
+                @infov 3 "Sweep: $sweep, Cost: $(cost[end]), Time: $(time() - t_start)s, ξ: $ξ"
+            end
         end
     end
 
@@ -362,7 +437,7 @@ end
 """
 Coarse-grain `ΨB` to renormalized `TA`, `TB` tensors
 """
-function ΨB_to_TATB(psiB::Vector{T}) where {T <: AbstractTensorMap{<:Any, <:Any, 1, 2}}
+function ΨB_to_TATB(psiB::Vector{T}) where {T<:AbstractTensorMap{<:Any,<:Any,1,2}}
     #= 
     (4)         (2)     (4)         (2)
       ↘        ↗          ↘        ↗
@@ -373,52 +448,48 @@ function ΨB_to_TATB(psiB::Vector{T}) where {T <: AbstractTensorMap{<:Any, <:Any
     (3)         (1)     (3)         (1)
     =#
     @plansor TA[-1 -2; -3 -4] := psiB[6][-2; 1 2] * psiB[7][2; 3 -4] *
-        psiB[2][-3; 3 4] * psiB[3][4; 1 -1]
+                                 psiB[2][-3; 3 4] * psiB[3][4; 1 -1]
     @plansor TB[-1 -2; -3 -4] := psiB[1][1; 2 -2] * psiB[4][-4; 2 3] *
-        psiB[5][3; 4 -3] * psiB[8][-1; 4 1]
+                                 psiB[5][3; 4 -3] * psiB[8][-1; 4 1]
     @assert _check_dual(TA) && _check_dual(TB)
     return TA, TB
 end
 
 function loop_opt!(
-        scheme::LoopTNR,
-        loop_criterion::stopcrit,
-        trunc::TensorKit.TruncationScheme,
-        truncentanglement::TensorKit.TruncationScheme,
-        verbosity::Int, nuclear_norm_regularization::Bool
-    )
+    scheme::LoopTNR,
+    loop_criterion::stopcrit,
+    trunc::TensorKit.TruncationScheme,
+    truncentanglement::TensorKit.TruncationScheme,
+    verbosity::Int, nuclear_norm_regularization::Bool
+)
     psiA = Ψ_A(scheme)
-    if !nuclear_norm_regularization
-        psiB = loop_opt(psiA, loop_criterion, trunc, truncentanglement, verbosity)
-    else
-        psiB = nnr_loop_opt(psiA, loop_criterion, trunc, verbosity)
-    end
+    psiB = loop_opt(psiA, loop_criterion, trunc, truncentanglement, verbosity; nuclear_norm_regularization=nuclear_norm_regularization)
 
     scheme.TA, scheme.TB = ΨB_to_TATB(psiB)
     return scheme
 end
 
 function step!(
-        scheme::LoopTNR,
-        trunc::TensorKit.TruncationScheme,
-        truncentanglement::TensorKit.TruncationScheme,
-        entanglement_criterion::stopcrit,
-        loop_criterion::stopcrit,
-        verbosity::Int, nuclear_norm_regularization::Bool
-    )
+    scheme::LoopTNR,
+    trunc::TensorKit.TruncationScheme,
+    truncentanglement::TensorKit.TruncationScheme,
+    entanglement_criterion::stopcrit,
+    loop_criterion::stopcrit,
+    verbosity::Int, nuclear_norm_regularization::Bool
+)
     !nuclear_norm_regularization && entanglement_filtering!(scheme, truncentanglement, entanglement_criterion)
     loop_opt!(scheme, loop_criterion, trunc, truncentanglement, verbosity::Int, nuclear_norm_regularization)
     return scheme
 end
 
 function run!(
-        scheme::LoopTNR, trscheme::TensorKit.TruncationScheme, truncentanglement::TensorKit.TruncationScheme,
-        criterion::stopcrit, entanglement_criterion::stopcrit, loop_criterion::stopcrit,
-        finalizer::Finalizer{E};
-        finalize_beginning = true,
-        verbosity = 1,
-        nuclear_norm_regularization = false
-    ) where {E}
+    scheme::LoopTNR, trscheme::TensorKit.TruncationScheme, truncentanglement::TensorKit.TruncationScheme,
+    criterion::stopcrit, entanglement_criterion::stopcrit, loop_criterion::stopcrit,
+    finalizer::Finalizer{E};
+    finalize_beginning=true,
+    verbosity=1,
+    nuclear_norm_regularization=false
+) where {E}
     data = Vector{E}()
 
     LoggingExtras.withlevel(; verbosity) do
@@ -448,14 +519,14 @@ function run!(scheme, trscheme, truncentanglement, criterion, entanglement_crite
 end
 
 function run!(
-        scheme::LoopTNR, trscheme::TensorKit.TruncationScheme, criterion::stopcrit;
-        finalize_beginning = true, verbosity = 1, max_loop = 50, tol_loop = 1.0e-8, nuclear_norm_regularization = true
-    )
+    scheme::LoopTNR, trscheme::TensorKit.TruncationScheme, criterion::stopcrit;
+    finalize_beginning=true, verbosity=1, max_loop=50, tol_loop=1.0e-10, nuclear_norm_regularization=true
+)
     loop_criterion = maxiter(max_loop) & convcrit(tol_loop, entanglement_function)
     return run!(
         scheme, trscheme, truncbelow(1.0e-15), criterion, default_entanglement_criterion, loop_criterion;
-        finalize_beginning = finalize_beginning,
-        verbosity = verbosity, nuclear_norm_regularization = nuclear_norm_regularization
+        finalize_beginning=finalize_beginning,
+        verbosity=verbosity, nuclear_norm_regularization=nuclear_norm_regularization
     )
 end
 

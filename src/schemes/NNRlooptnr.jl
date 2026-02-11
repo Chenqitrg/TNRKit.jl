@@ -9,65 +9,96 @@ function PhidPhi(T::AbstractTensorMap{E,S,2,2}, right_left::AbstractTensorMap{E,
     return T_new
 end
 
+
 function nnr_loop_opt(
     psiA::Vector{T}, loop_criterion::stopcrit,
     trunc::TensorKit.TruncationScheme, verbosity::Int;
-    ξ_min = 1e-7, ξ_init = 1e-4, ρ = 0.85
+    ξ_min=1e-7, ξ_init=1e-4, ρ=0.85
 ) where {T<:AbstractTensorMap{E,S,1,3}} where {E,S}
-    psiA_approx = copy(psiA)
+    psiB = Ψ_B(psiA, trunc)
+    M = to_M(psiB)
+    Λ = map(x -> zeros(E, space(x)), M)
+
     NA = length(psiA) # Number of tensors in the MPS Ψ_A
-    psiA_approx_psiA_approx = ΨAΨA(psiA_approx)
-    psiA_approx_psiA = ΨA_approx_ΨA(psiA_approx, psiA)
+    psiBpsiB = ΨBΨB(psiB)
+    psiBpsiA = ΨBΨA(psiB, psiA)
     psiApsiA = ΨAΨA(psiA)
     YdY = to_number(psiApsiA) # Since C is not changed during the optimization, we can compute it once and use it in the cost function.
     cost = Float64[Inf]
     sweep = 0
     crit = true
+
     ξ = ξ_init
-
     while crit
-        right_cache_A_approx_A_approx = right_cache(psiA_approx_psiA_approx)
-        right_cache_A_approx_A = right_cache(psiA_approx_psiA)
-        left_A_approx_A = id(E, codomain(psiApsiA[1])) # Initialize the left transfer matrix for ΨBΨB
-        left_A_approx_A_approx = id(E, codomain(psiApsiA[1]))
-        t_start = time()
+        t0 = time()
+        right_cache_BB = right_cache(psiBpsiB)
+        right_cache_BA = right_cache(psiBpsiA)
+        left_BB = id(E, codomain(psiBpsiB[1])) # Initialize the left transfer matrix for ΨBΨB
+        left_BA = id(E, codomain(psiBpsiA[1])) # Initialize the left transfer matrix for ΨBΨA
 
-        for pos_psiA in 1:NA
-            TA = transpose(psiA[pos_psiA], ((2, 1), (3, 4)))
-            TA_approx = transpose(psiA_approx[pos_psiA], ((2, 1), (3, 4)))
-            PhidY = PhidPhi(TA, right_cache_A_approx_A[pos_psiA] * left_A_approx_A)
-            right_left = right_cache_A_approx_A_approx[pos_psiA] * left_A_approx_A_approx
-            new_psiA_approx_tr, cost_this = tr_low_rank_factor(x -> PhidPhi(x, right_left), PhidY, TA_approx, YdY, trunc.dim; verbosity = verbosity, ξ = ξ, ρ = ρ, maximum_steps = 1)
+        t1 = time()
 
-            new_psiA_approx = transpose(new_psiA_approx_tr, ((2,), (1, 3, 4)))
-            psiA_approx[pos_psiA] = new_psiA_approx
+        cost_this = Inf
 
-            @plansor A_approx_A_approx_temp[-1 -2; -3 -4] := new_psiA_approx[-2; 1 2 -4] * conj(new_psiA_approx[-1; 1 2 -3])
-            @plansor A_approx_A_temp[-1 -2; -3 -4] := psiA[pos_psiA][-2; 1 2 -4] * conj(new_psiA_approx[-1; 1 2 -3])
-
-            psiA_approx_psiA_approx[pos_psiA] = A_approx_A_approx_temp
-            psiA_approx_psiA[pos_psiA] = A_approx_A_temp
-
-            left_A_approx_A_approx = left_A_approx_A_approx * A_approx_A_approx_temp
-            left_A_approx_A = left_A_approx_A * A_approx_A_temp
-
+        if sweep == 0
+            tNt = tr(psiBpsiB[1] * right_cache_BB[1])
+            tdw = tr(psiBpsiA[1] * right_cache_BA[1])
+            wdt = conj(tdw)
+            cost_this = real((YdY + tNt - wdt - tdw) / YdY)
+            if verbosity > 1
+                @infov 3 "Initial cost: $cost_this"
+            end
             push!(cost, cost_this)
         end
-        ξ = max(ρ * ξ, ξ_min)
+
+        t2 = time()
+
+        @infov 4 "  initialize time = $(t2 - t1)"
+
+        for pos_psiA in 1:NA
+            t3 = time()
+            right_left = tN(left_BB, right_cache_BB[2*pos_psiA]) # Compute the half of the matrix N for the current position in the loop, right cache is used to minimize the number of multiplications
+            PhidY = PhidPhi(transpose(psiA[pos_psiA], ((2, 1), (3, 4))), right_cache_BA[pos_psiA] * left_BA)
+
+            S1 = psiB[2*pos_psiA]
+            right_left_1 = right_left * 
+            S2 = transpose(psiB[2*pos_psiA-1], ((2, 1), (3,)))
+
+            t4 = time()
+
+            S1, S2, M[2*pos_psiA], M[2*pos_psiA-1], Λ[2*pos_psiA], Λ[2*pos_psiA-1], cost_this = tr_low_rank_factor!(x -> PhidPhi(x, right_left), PhidY, YdY, S1, S2, M[2*pos_psiA], M[2*pos_psiA-1], Λ[2*pos_psiA], Λ[2*pos_psiA-1], trunc.dim, ξ)
+
+            t5 = time()
+
+            psiB[2*pos_psiA] = S1
+            psiB[2*pos_psiA-1] = transpose(S2, ((2,), (1, 3)))
+
+            @plansor BB_temp1[-1 -2; -3 -4] := psiB[2*pos_psiA][-2; 1 -4] * conj(psiB[2*pos_psiA][-1; 1 -3])
+            @plansor BB_temp2[-1 -2; -3 -4] := psiB[2*pos_psiA-1][-2; 1 -4] * conj(psiB[2*pos_psiA-1][-1; 1 -3])
+            psiBpsiB[2*pos_psiA] = BB_temp1 # Update the transfer matrix for ΨBΨB
+            psiBpsiB[2*pos_psiA-1] = BB_temp2
+            left_BB = left_BB * BB_temp2 * BB_temp1 # Update the left transfer matrix for ΨBΨB
+
+            @plansor BA_temp[-1 -2; -3 -4] :=
+                conj(psiB[2*pos_psiA-1][-1; 1 3]) *
+                psiA[pos_psiA][-2; 1 2 -4] *
+                conj(psiB[2*pos_psiA][3; 2 -3])
+            psiBpsiA[pos_psiA] = BA_temp # Update the transfer matrix for ΨBΨA
+            left_BA = left_BA * BA_temp # Update the left transfer matrix for ΨBΨA
+
+            t6 = time()
+
+            @infov 4 "  t_prepare = $(t4 - t3), t_optimization = $(t5 - t4), t_later = $(t6 - t5)"
+        end
         sweep += 1
-        
+        ξ = max(ρ * ξ, ξ_min)
+
+        push!(cost, cost_this)
         crit = loop_criterion(sweep, cost)
         if verbosity > 1
-            @infov 3 "Sweep: $sweep, Cost: $(cost[end]), Time: $(time() - t_start)s" # Included the time taken for the sweep
+            @infov 3 "Sweep: $sweep, Cost: $(cost[end]), Time: $(time() - t0)s" # Included the time taken for the sweep
         end
     end
-
-    ΨB = [
-        collect(SVD12(psiA_approx[1], trunc; reversed = true));
-        collect(SVD12(psiA_approx[2], trunc; reversed = true));
-        collect(SVD12(psiA_approx[3], trunc));
-        collect(SVD12(psiA_approx[4], trunc));
-    ]
-    return ΨB
+    return psiB
 end
 

@@ -29,5 +29,8 @@ YdY = tr(T' * PhidPhi(T))
 # X_approx2, error2 = gradient_low_rank(PhidPhi, PhidY, T, T, 16; maximum_steps = 10000)
 
 # println("error1 = $error1, error2 = $error2")
-X_approx0, error0 = svd_low_rank(PhidPhi, PhidY, T, YdY, 16; maximum_steps = 60, k = 0.0)
-X_tr, error_tr = tr_low_rank_factor(PhidPhi, PhidY, X_approx0, YdY, 16; maximum_steps = 5000)
+X_svd, error_svd = svd_low_rank(PhidPhi, PhidY, T, YdY, 16; maximum_steps = 10, k = 0.0)
+X_tr, error_tr = tr_low_rank_factor(PhidPhi, PhidY, T, YdY, 16; maximum_steps = 1000)
+X_admm, error_admm = admm_low_rank(PhidPhi, PhidY, T, YdY, 16; maximum_steps = 1000)
+
+@show error_svd, error_tr, error_admm

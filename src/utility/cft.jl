@@ -136,6 +136,12 @@ function reduced_MPO(
     return translate
 end
 
+function MPO_action_2x2(A::TensorMap, B::TensorMap, x::TensorMap)
+    @tensor fx[-1 -2; 0] := A[c -1; 1 m] * x[1 2; 0] * B[m -2; 2 c]
+    @tensor ffx[-1 -2; 0] := B[c -1; 1 m] * fx[1 2; 0] * A[m -2; 2 c]
+    return ffx
+end
+
 function MPO_action_1x4(TA::TensorMap, TB::TensorMap, x::TensorMap)
     @tensor TTTTx[-1 -2 -3 -4; -5] := x[1 2 3 4; -5] * TA[41 -1; 1 12] *
         TB[12 -2; 2 23] *
@@ -176,6 +182,9 @@ function spec(TA::TensorMap, TB::TensorMap, shape::Array; Nh = 25)
     elseif shape ≈ [sqrt(2), 2 * sqrt(2), 0] ||
             shape ≈ [4 / sqrt(10), 2 * sqrt(10), 2 / sqrt(10)]
         domain(TB) ⊗ domain(TB), MPO_action_2gates
+    elseif shape ≈ [2, 2, 0]
+        domain(TA)[1] ⊗ domain(TB)[1],
+            MPO_action_2x2
     end
 
     spec_sector = Dict(
@@ -186,7 +195,7 @@ function spec(TA::TensorMap, TB::TensorMap, shape::Array; Nh = 25)
                 return charge => [0.0]
             else
                 spec, _, info = eigsolve(
-                    a -> f(TA, TB, a), x, Nh, :LM; krylovdim = 40, maxiter = 100,
+                    a -> f(TA, TB, a), x, Nh, :LM; krylovdim = 50, maxiter = 100,
                     tol = 1.0e-12,
                     verbosity = 0
                 )
@@ -201,7 +210,9 @@ function spec(TA::TensorMap, TB::TensorMap, shape::Array; Nh = 25)
     conformal_data = Dict()
 
     norm_const_0 = spec_sector[one(I)][1]
-    conformal_data["c"] = 6 / pi / (Imτ - area / 4) * log(norm_const_0)
+    if abs(Imτ - area / 4) > 1e-5
+        conformal_data["c"] = 6 / pi / (Imτ - area / 4) * log(norm_const_0)
+    end
 
     for charge in sectors(fuse(xspace))
         DeltaS = -1 / (2 * pi * Imτ) * log.(spec_sector[charge] / norm_const_0)
@@ -237,14 +248,14 @@ function cft_data(
     return conformal_data
 end
 
-function cft_data(scheme::LoopTNR, shape::Array)
-    if !(shape in [[1, 4, 1], [sqrt(2), 2 * sqrt(2), 0]])
+function cft_data(scheme::LoopTNR, shape::Array; Nh = 30)
+    if !(shape in [[1, 4, 1], [sqrt(2), 2 * sqrt(2), 0], [2, 2, 0]])
         throw(ArgumentError("The shape $shape is not correct."))
     end
 
     @infov 2 "CFT data calculating"
     norm_const = area_term(scheme.TA, scheme.TB)^(1 / 4)
-    conformal_data = spec(scheme.TA / norm_const, scheme.TB / norm_const, shape)
+    conformal_data = spec(scheme.TA / norm_const, scheme.TB / norm_const, shape; Nh = Nh)
     return conformal_data
 end
 

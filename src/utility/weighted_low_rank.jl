@@ -50,7 +50,7 @@ function one_loop_reduction(PhidPhi::Function, X0::TensorMap, trunc::TruncationS
     return U, S, V
 end
 
-function svd_low_rank(PhidPhi::Function, PhidY::TensorMap, X0::TensorMap, YdY::Float64, trunc_dim::Int; maximum_steps=30, rtol=1e-12, verbosity=3, k=0.0, one_loop=true)
+function svd_low_rank(PhidPhi::Function, PhidY::TensorMap, YdY::Float64, X0::TensorMap, trunc_dim::Int; maximum_steps=40, rtol=1e-12, verbosity=3, k=0.0, one_loop=true)
     X_update = copy(X0)
     error = Inf
 
@@ -137,77 +137,36 @@ function admm_low_rank(PhidPhi::Function, PhidY::TensorMap, X0::TensorMap, YdY::
     return X_update, error
 end
 
-function tr_low_rank_factor(PhidPhi::Function, PhidY::TensorMap, X0::TensorMap, YdY::Float64, trunc_dim::Int; ξ=1e-4, ρ=0.8, tol = 1e-12, ξ_min=1e-7, maximum_steps=40, verbosity=3, one_loop=true)
-    if one_loop
-        U, S, V = one_loop_reduction(PhidPhi, X0, truncdim(trunc_dim))
-    else
-        U, S, V = tsvd(X_update; alg=TensorKit.SVD(), trunc=truncdim(trunc_dim) & truncbelow(1e-14))
+function tr_low_rank_factor!(PhidPhi::Function, PhidY::TensorMap, YdY::Float64, S1::TensorMap{E,S,1,2}, S2::TensorMap{E,S,2,1}, M1::TensorMap{E,S,1,2}, M2::TensorMap{E,S,2,1}, Λ1::TensorMap{E,S,1,2}, Λ2::TensorMap{E,S,2,1}, trunc_dim::Int, ξ::Float64; tol=1e-12, verbosity=3) where {E,S}
+    t1 = time()
+    b1 = S2' * PhidY + ξ * M1 + Λ1
+    S1, info = linsolve(x -> (S2' * PhidPhi(S2 * x) + ξ * x), b1, S1; krylovdim=20, maxiter=20, tol=1.0e-12, verbosity=0)
+    t1_lin = time()
+    M1, rank, _, nuclear_norm1 = svt(S1 + (-Λ1 / ξ), ξ)
+    Λ1 += ξ * (M1 - S1)
+    t1_later = time()
+
+    @infov 4 "      Update S1 time = $(t1_lin - t1), later = $(t1_later - t1_lin)"
+
+
+    t2 = time()
+    b2 = PhidY * S1' + ξ * M2 + Λ2
+    S2, info = linsolve(x -> (PhidPhi(x * S1) * S1' + ξ * x), b2, S2; krylovdim=20, maxiter=20, tol=1.0e-12, verbosity=0)
+    t2_lin = time()
+    M2, rank, _, nuclear_norm2 = svt(S2 + (-Λ2 / ξ), ξ)
+    Λ2 += ξ * (M2 - S2)
+    t2_later = time()
+
+    @infov 4 "      Update S2 time = $(t2_lin - t2), later = $(t2_later - t2_lin)"
+
+    X_new = S2 * S1
+
+    cost = (tr(X_new' * PhidPhi(X_new)) - 2 * real(tr(PhidY * X_new')) + YdY) / YdY
+
+    if verbosity > 1
+        @infov 3 "cost = $(round(cost, digits=10)), nuclear_norm_S1S1 = $(round(nuclear_norm1 + nuclear_norm2, digits=10)), ξ = $(round(ξ, digits=7))"
     end
 
-    US = U * sqrt(S)
-    M_U = copy(US)
-    Λ_U = zeros(eltype(US), space(US))
-
-    SV = sqrt(S) * V
-    M_V = copy(SV)
-    Λ_V = zeros(eltype(SV), space(SV))
-
-    error = Inf
-
-    X = copy(X0)
-
-    for i in 1:maximum_steps
-        US_new, info = linsolve(x -> (PhidPhi(x * SV) * SV' + ξ * x), PhidY * SV' + ξ * M_U + Λ_U, US; krylovdim=20, maxiter=20, tol=1.0e-12, verbosity=0)
-        M_U_new, rank, _, nuclear_norm = svt(US_new + (-Λ_U / ξ), ξ)
-        Λ_U += ξ * (M_U_new - US_new)
-
-        SV_new, info = linsolve(x -> (US_new' * PhidPhi(US_new * x) + ξ * x), US_new' * PhidY + ξ * M_V + Λ_V, SV; krylovdim=20, maxiter=20, tol=1.0e-12, verbosity=0)
-        M_V_new, rank, _, nuclear_norm = svt(SV_new + (-Λ_V / ξ), ξ)
-        Λ_V += ξ * (M_V_new - SV_new)
-
-        X_new = US_new * SV_new
-
-        error_X = (tr(X_new' * PhidPhi(X_new)) - 2 * real(tr(PhidY * X_new')) + YdY) / YdY
-        objective_function = error_X / 2 + ξ^2 * nuclear_norm
-        relative_change = norm(X - X_new) / norm(X)
-
-        if verbosity > 1
-            @infov 3 "Iteration $i: rank = $rank, error_X = $(round(error_X, digits=10)), objective function = $(round(objective_function, digits=10)), ξ = $(round(ξ, digits=7)), relative_change = $(round(relative_change, digits = 3))"
-        end
-
-        last_error = error
-        error = error_X
-        US = US_new
-        M_U = M_U_new
-        SV = SV_new
-        M_V = M_V_new
-
-        if error < tol || abs(last_error - error) / error < 1e-2
-            break
-        end
-
-        ξ = max(ρ * ξ, ξ_min)
-    end
-
-    return US * SV, error
+    return S1, S2, M1, M2, Λ1, Λ2, cost
 end
 
-function svt(T::TensorMap, tau::Float64)
-    U, S, V = tsvd(T; alg=TensorKit.SVD())
-
-    thresholded_S = map(s -> max(s - tau, 0), S.data)
-    rank_reduced = count(s -> s > 0, thresholded_S)
-    nuclear_norm = sum(thresholded_S)
-    new_S = DiagonalTensorMap(thresholded_S, domain(S, 1))
-    return U * new_S * V, rank_reduced, tau, nuclear_norm
-end
-
-function svt(T::TensorMap, trunc_dim::Int)
-    U, S, V = tsvd(T; alg=TensorKit.SVD(), trunc=truncdim(trunc_dim + 1))
-    tau = S.data[trunc_dim+1]
-    thresholded_S = map(s -> max(s - tau, 0), S.data)
-    nuclear_norm = sum(thresholded_S)
-    rank_reduced = count(s -> s > 0, thresholded_S)
-    new_S = DiagonalTensorMap(thresholded_S, domain(S, 1))
-    return U * new_S * V, rank_reduced, tau, nuclear_norm
-end
