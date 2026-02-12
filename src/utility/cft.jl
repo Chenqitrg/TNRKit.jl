@@ -196,7 +196,7 @@ function spec(TA::TensorMap, TB::TensorMap, shape::Array; Nh = 25)
             else
                 spec, _, info = eigsolve(
                     a -> f(TA, TB, a), x, Nh, :LM; krylovdim = 50, maxiter = 100,
-                    tol = 1.0e-12,
+                    tol = 1.0e-14,
                     verbosity = 0
                 )
                 if info.converged == 0
