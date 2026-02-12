@@ -60,7 +60,7 @@ It is based on [Gauss-Hermite quadrature](https://en.wikipedia.org/wiki/Gauss%E2
 ```
 
 ### References
-* [Kadoh et. al. 10.1007/JHEP05(2019)184 (2019)](@cite kadohTensorNetworkAnalysis2019)
+* [Kadoh et. al. 10.1007/JHEP05(2019)184 (2019)](@cite kadoh2019)
 
 See also: [`phi4_real_imp1`](@ref), [`phi4_real_imp2`](@ref), [`phi4_real_symmetric`](@ref).
 """
@@ -112,7 +112,7 @@ It is based on [Gauss-Hermite quadrature](https://en.wikipedia.org/wiki/Gauss%E2
 ```
 
 ### References
-* [Kadoh et. al. 10.1007/JHEP05(2019)184 (2019)](@cite kadohTensorNetworkAnalysis2019)
+* [Kadoh et. al. 10.1007/JHEP05(2019)184 (2019)](@cite kadoh2019)
 
 See also: [`phi4_real`](@ref), [`phi4_real_imp2`](@ref), [`phi4_real_symmetric`](@ref).
 """
@@ -164,7 +164,7 @@ It is based on [Gauss-Hermite quadrature](https://en.wikipedia.org/wiki/Gauss%E2
 ```
 
 ### References
-* [Kadoh et. al. 10.1007/JHEP05(2019)184 (2019)](@cite kadohTensorNetworkAnalysis2019)
+* [Kadoh et. al. 10.1007/JHEP05(2019)184 (2019)](@cite kadoh2019)
 
 See also: [`phi4_real`](@ref), [`phi4_real_imp1`](@ref), [`phi4_real_symmetric`](@ref).
 """
@@ -218,7 +218,7 @@ It is based on Taylor expanding the mixed sites term.
 ```
 
 ### References
-* [Delcamp et. al. Phys. Rev. Research 2, 033278 (2020)](@cite delcampComputingRenormalizationGroup2020)
+* [Delcamp et. al. Phys. Rev. Research 2, 033278 (2020)](@cite delcamp2020)
 
 See also: [`phi4_real`](@ref), [`phi4_real_imp1`](@ref), [`phi4_real_symmetric`](@ref).
 """

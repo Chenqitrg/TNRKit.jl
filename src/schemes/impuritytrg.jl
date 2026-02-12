@@ -7,7 +7,7 @@ Impurity method for Tensor Renormalization Group
     $(FUNCTIONNAME)(T, T_imp1, T_imp2, T_imp3, T_imp4)
 
 ### Running the algorithm
-    run!(::ImpurityTRG, trunc::TensorKit.TruncationSheme, stop::Stopcrit[, finalizer=ImpurityTRG_Finalizer, finalize_beginning=true, verbosity=1])
+    run!(::ImpurityTRG, trunc::TruncationStrategy, stop::Stopcrit[, finalizer=ImpurityTRG_Finalizer, finalize_beginning=true, verbosity=1])
 
 Each step rescales the lattice by a (linear) factor of √2
 
@@ -32,8 +32,8 @@ p---4---3---p
 ```
 
 ### References
-* [Kadoh et. al. 10.1007/JHEP05(2019)184 (2019)](@cite kadohTensorNetworkAnalysis2019)
-* [Morita et. al. Phys. Rev. B 111 (2025)](@cite moritaMultiimpurityMethodBondweighted2025)
+* [Kadoh et. al. 10.1007/JHEP05(2019)184 (2019)](@cite kadoh2019)
+* [Morita et. al. Phys. Rev. B 111 (2025)](@cite morita2025)
 """
 mutable struct ImpurityTRG{E, S, TT <: AbstractTensorMap{E, S, 2, 2}} <: TNRScheme{E, S}
     "Pure tensor"

@@ -7,7 +7,7 @@ Bond-weighted Tensor Renormalization Group
     $(FUNCTIONNAME)(T [, k=-1/2])
 
 ### Running the algorithm
-    run!(::BTRG, trunc::TensorKit.TruncationSheme, stop::Stopcrit[, finalizer=default_Finalizer, finalize_beginning=true, verbosity=1])
+    run!(::BTRG, trunc::TruncationStrategy, stop::Stopcrit[, finalizer=default_Finalizer, finalize_beginning=true, verbosity=1])
 
 Each step rescales the lattice by a (linear) factor of √2
 
@@ -21,7 +21,7 @@ Each step rescales the lattice by a (linear) factor of √2
 $(TYPEDFIELDS)
 
 ### References
-* [Adachi et. al. Phys. Rev. B 105 (2022)](@cite adachiBondweightedTensorRenormalization2022)
+* [Adachi et. al. Phys. Rev. B 105 (2022)](@cite adachi2022)
 """
 mutable struct BTRG{E, S, TT <: AbstractTensorMap{E, S, 2, 2}, BT <: AbstractTensorMap{E, S, 1, 1}} <: TNRScheme{E, S}
     "Central tensor"

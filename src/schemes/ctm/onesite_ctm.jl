@@ -1,13 +1,33 @@
 """
-            ┌───┐ ┌──┐ ┌───┐
-            │Ctl├─┤Et├─┤Ctr│
-            └─┬─┘ └┬─┘ └─┬─┘
-            ┌─┼─┐ ┌┼─┐ ┌─┼─┐
-            │El ├─┤T ├─┤Er │
-            └─┬─┘ └┬─┘ └─┬─┘
-            ┌─┼─┐ ┌┼─┐ ┌─┼─┐
-            │Cbl├─┤Eb├─┤Cbr│
-            └───┘ └──┘ └───┘
+$(TYPEDEF)
+
+Corner Transfer Matrix Renormalization Group (one-site environment)
+
+### Constructors
+    $(FUNCTIONNAME)(T[, bc=ones, bc_free=false])
+
+### Running the algorithm
+    run!(::CTM, trunc::TruncationStrategy, criterion::maxiter[, conv_criterion=1.0e-8, verbosity=1])
+
+### Fields
+
+$(TYPEDFIELDS)
+
+```
+    ┌───┐ ┌──┐ ┌───┐
+    │Ctl├─┤Et├─┤Ctr│
+    └─┬─┘ └┬─┘ └─┬─┘
+    ┌─┼─┐ ┌┼─┐ ┌─┼─┐
+    │El ├─┤T ├─┤Er │
+    └─┬─┘ └┬─┘ └─┬─┘
+    ┌─┼─┐ ┌┼─┐ ┌─┼─┐
+    │Cbl├─┤Eb├─┤Cbr│
+    └───┘ └──┘ └───┘
+```
+
+### References
+* [Baxter Physica A 106(1) (1981)](@cite baxter1981)
+* [Nishino & Okunishi J. Phys. Soc. Jpn. 65 (1996)](@cite nishino1996)
 """
 mutable struct CTM{E, S, TT <: AbstractTensorMap{E, S, 2, 2}, TC <: AbstractTensorMap{E, S, 1, 1}, TE <: AbstractTensorMap{E, S, 2, 1}} <: TNRScheme{E, S}
     T::TT
@@ -20,8 +40,6 @@ mutable struct CTM{E, S, TT <: AbstractTensorMap{E, S, 2, 2}, TC <: AbstractTens
     Et::TE
     Er::TE
 end
-
-#TODO: type everything
 
 CTM(T; bc = ones, bc_free = false) = CTM(T, CTM_init(T; bc, bc_free)...)
 

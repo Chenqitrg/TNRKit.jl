@@ -7,7 +7,7 @@ Anisotropic Tensor Renormalization Group
     $(FUNCTIONNAME)(T)
 
 ### Running the algorithm
-    run!(::ATRG, trunc::TensorKit.TruncationSheme, stop::Stopcrit[, finalizer=default_Finalizer, finalize_beginning=true, verbosity=1])
+    run!(::ATRG, trunc::TruncationStrategy, stop::Stopcrit[, finalizer=default_Finalizer, finalize_beginning=true, verbosity=1])
 
 Each step rescales the lattice by a (linear) factor of √2
 
@@ -21,7 +21,7 @@ Each step rescales the lattice by a (linear) factor of √2
 $(TYPEDFIELDS)
 
 ### References
-* [Adachi et. al. Phys. Rev. B 102 (2020)](@cite adachiAnisotropicTensorRenormalization2020)
+* [Adachi et. al. Phys. Rev. B 102 (2020)](@cite adachi2020)
 """
 mutable struct ATRG{E, S, TT <: AbstractTensorMap{E, S, 2, 2}} <: TNRScheme{E, S}
     "Central tensor"

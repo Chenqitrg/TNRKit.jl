@@ -7,6 +7,7 @@ Corner Transfer Matrix Renormalization Group for the triangular lattice
     $(FUNCTIONNAME)(T)
     $(FUNCTIONNAME)(T, [, symmetrize=false])
 
+```
      (120°)     (60°)
         ╲       ╱
          ╲     ╱
@@ -16,6 +17,7 @@ Corner Transfer Matrix Renormalization Group for the triangular lattice
           ╱   ╲
          ╱     ╲
       (240°) (300°)
+```
 
 CTM can be called with a (3, 3) tensor, where the directions are (180°, 240°, 300°, 120°, 60°, 0°) clockwise with respect to the positive x-axis.
 In the flipped arrow convention, the arrows point from (120°, 60°, 0°) to (180°, 240°, 300°).
@@ -23,7 +25,7 @@ or with a (0,6) tensor (120°, 60°, 0°, 300°, 240°, 180°) where all arrows 
 The keyword argument symmetrize makes the tensor C6v symmetric when set to true. If symmetrize = false, it checks the symmetry explicitly.
 
 ### Running the algorithm
-    run!(::CTM, trunc::TensorKit.TruncationSheme, stop::Stopcrit[, finalize_beginning=true, verbosity=1])
+    run!(::CTM, trunc::TruncationStrategy, stop::Stopcrit[, finalize_beginning=true, verbosity=1])
 
 !!! info "verbosity levels"
     - 0: No output
@@ -33,6 +35,9 @@ The keyword argument symmetrize makes the tensor C6v symmetric when set to true.
 ### Fields
 
 $(TYPEDFIELDS)
+
+### References
+* [Naumann et al. Phys. Rev. B 113(4) (2026)](@cite naumann2026)
 """
 mutable struct CTM_triangular{A, S}
     T::TensorMap{A, S, 0, 6}
@@ -77,6 +82,7 @@ C6v symmetric Corner Transfer Matrix Renormalization Group
     $(FUNCTIONNAME)(T)
     $(FUNCTIONNAME)(T, [, symmetrize=false])
 
+```
      (120°)     (60°)
         ╲       ╱
          ╲     ╱
@@ -86,6 +92,7 @@ C6v symmetric Corner Transfer Matrix Renormalization Group
           ╱   ╲
          ╱     ╲
       (240°) (300°)
+```
 
 c6vCTM can be called with a (3, 3) tensor, where the directions are (180°, 240°, 300°, 120°, 60°, 0°) clockwise with respect to the positive x-axis.
 In the flipped arrow convention, the arrows point from (120°, 60°, 0°) to (180°, 240°, 300°).
@@ -106,6 +113,10 @@ The keyword argument symmetrize makes the tensor C6v symmetric when set to true.
 ### Fields
 
 $(TYPEDFIELDS)
+
+### References
+* [Naumann et al. Phys. Rev. B 113(4) (2026)](@cite naumann2026)
+* c6v implementation provided by Sander De Meyer
 """
 mutable struct c6vCTM_triangular{A, S}
     T::TensorMap{A, S, 0, 6}

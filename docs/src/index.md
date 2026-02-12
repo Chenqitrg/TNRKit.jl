@@ -20,15 +20,16 @@ Many common TNR schemes have already been implemented:
 * [`HOTRG`](@ref) (higher order TRG)
 * [`ATRG`](@ref) (anisotropic TRG)
 
-**2D triangular tensor networks**
+**2D square CTM methods**
+* [`CTM`](@ref) (Corner Transfer Matrix)
+* [`c4vCTM`](@ref) (c4v symmetric CTM)
+* [`rCTM`](@ref) (reflection symmetric CTM)
+* [`ctm_TRG`](@ref) (Corner Transfer Matrix environment + TRG)
+* [`ctm_HOTRG`](@ref) (Corner Transfer Matrix environment + HOTRG)
+
+**2D triangular CTM methods**
 * [`c6vCTM_triangular`](@ref) (c6v symmetric CTM on the triangular lattice)
 * [`CTM_triangular`](@ref) (CTM on the triangular lattice)
-
-**CTM methods (yet to be documented)**
-* `ctm_TRG` (Corner Transfer Matrix environment + TRG)
-* `ctm_HOTRG` (Corner Transfer Matrix environment + HOTRG)
-* `c4vCTM` (c4v symmetric CTM)
-* `rCTM` (reflection symmetric CTM)
 
 **Impurity Methods**
 * [`ImpurityTRG`](@ref)
@@ -80,6 +81,7 @@ TNRKit includes several common models out of the box.
 - Potts model: [`classical_potts`](@ref) and [`classical_potts_symmetric`](@ref), which has a Zq grading on each leg.
 - Six Vertex model: [`sixvertex`](@ref)
 - Clock model: [`classical_clock`](@ref) and [`classical_clock_symmetric`](@ref) which has a Zq grading on each leg.
+- XY model: [`classical_XY_U1_symmetric`](@ref) and [`classical_XY_O2_symmetric`](@ref).
 
 ## Included Models on the triangular lattice
 TNRKit includes several common models out of the box.
