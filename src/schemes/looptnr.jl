@@ -93,7 +93,7 @@ end
 function Ψ_B(ΨA::Vector{<:AbstractTensorMap{E, S, 1, 3}}, trunc::TruncationStrategy, truncentanglement::TruncationStrategy) where {E, S}
     @assert trunc isa MatrixAlgebraKit.TruncationByOrder
     NA = length(ΨA)
-    _trunc = truncrank(trunc.howmany * 2)
+    _trunc = truncrank(trunc.howmany)
     #= 
             |     |
             2 --- 3
@@ -106,20 +106,22 @@ function Ψ_B(ΨA::Vector{<:AbstractTensorMap{E, S, 1, 3}}, trunc::TruncationStr
             |     |
     =#
     ΨB = [
-        collect(SVD12(ΨA[1], _trunc; reversed = true));
+        collect(SVD12(ΨA[1], _trunc));
         collect(SVD12(ΨA[2], _trunc; reversed = true));
-        collect(SVD12(ΨA[3], _trunc));
+        collect(SVD12(ΨA[3], _trunc; reversed = true));
         collect(SVD12(ΨA[4], _trunc));
     ]
 
-    ΨB_function(steps, data) = abs(data[end])
-    criterion = maxiter(10) & convcrit(1.0e-12, ΨB_function)
+    @show "changed"
 
-    in_inds = ones(Int, 2 * NA)
-    out_inds = 2 * ones(Int, 2 * NA)
+    # ΨB_function(steps, data) = abs(data[end])
+    # criterion = maxiter(10) & convcrit(1.0e-12, ΨB_function)
 
-    PR_list, PL_list = find_projectors(ΨB, in_inds, out_inds, criterion, trunc & truncentanglement)
-    MPO_disentangled!(ΨB, in_inds, out_inds, PR_list, PL_list)
+    # in_inds = ones(Int, 2 * NA)
+    # out_inds = 2 * ones(Int, 2 * NA)
+
+    # PR_list, PL_list = find_projectors(ΨB, in_inds, out_inds, criterion, trunc & truncentanglement)
+    # MPO_disentangled!(ΨB, in_inds, out_inds, PR_list, PL_list)
     return ΨB
 end
 
@@ -373,10 +375,10 @@ function ΨB_to_TATB(psiB::Vector{T}) where {T <: AbstractTensorMap{<:Any, <:Any
       ↗        ↘          ↗        ↘
     (3)         (1)     (3)         (1)
     =#
-    @plansor TA[-1 -2; -3 -4] := psiB[6][-2; 1 2] * psiB[7][2; 3 -4] *
-        psiB[2][-3; 3 4] * psiB[3][4; 1 -1]
-    @plansor TB[-1 -2; -3 -4] := psiB[1][1; 2 -2] * psiB[4][-4; 2 3] *
-        psiB[5][3; 4 -3] * psiB[8][-1; 4 1]
+    @plansor TA[-1 -2; -3 -4] := psiB[1][1; 2 -4] * psiB[4][-3; 2 3] *
+        psiB[5][3; 4 -1] * psiB[8][-2; 4 1]
+    @plansor TB[-1 -2; -3 -4] := psiB[6][-4; 1 2] * psiB[7][2; 3 -3] *
+        psiB[2][-1; 3 4] * psiB[3][4; 1 -2]
     @assert _check_dual(TA) && _check_dual(TB)
     return TA, TB
 end
