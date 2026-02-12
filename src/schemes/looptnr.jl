@@ -349,7 +349,7 @@ function loop_opt(
         Λ = map(x -> zeros(E, space(x)), psiB)
         ξ = ξ_init
     else
-        psiB = Ψ_B(psiA, trunc, truncentanglement)
+        psiB = Ψ_B(psiA, trunc)
     end
 
     NB = length(psiB) # Number of tensors in the MPS Ψ_B
