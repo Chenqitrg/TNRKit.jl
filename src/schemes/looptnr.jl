@@ -124,7 +124,6 @@ end
 
 function Ψ_B(ΨA::Vector{<:AbstractTensorMap{E,S,1,3}}, trunc::TensorKit.TruncationScheme) where {E,S}
     NA = length(ΨA)
-    _trunc = truncdim(trunc.dim * 2)
     #= 
             |     |
             2 --- 3
@@ -137,10 +136,10 @@ function Ψ_B(ΨA::Vector{<:AbstractTensorMap{E,S,1,3}}, trunc::TensorKit.Trunca
             |     |
     =#
     ΨB = [
-        collect(SVD12(ΨA[1], _trunc; reversed=true));
-        collect(SVD12(ΨA[2], _trunc; reversed=true));
-        collect(SVD12(ΨA[3], _trunc));
-        collect(SVD12(ΨA[4], _trunc))
+        collect(SVD12(ΨA[1], trunc; reversed=true));
+        collect(SVD12(ΨA[2], trunc; reversed=true));
+        collect(SVD12(ΨA[3], trunc));
+        collect(SVD12(ΨA[4], trunc))
     ]
 
     return ΨB
@@ -418,6 +417,8 @@ function loop_opt(
         cost_this = real((C + tNt - wdt - tdw) / C)
         push!(cost, cost_this)
         crit = loop_criterion(sweep, cost)
+
+        sweep += 1
         if verbosity > 1
             if !nuclear_norm_regularization
                 @infov 3 "Sweep: $sweep, Cost: $(cost[end]), Time: $(time() - t_start)s" # Included the time taken for the sweep
@@ -426,7 +427,6 @@ function loop_opt(
             end
         end
 
-        sweep += 1
         if nuclear_norm_regularization
             ξ = max(ρ * ξ, ξ_min)
         end
