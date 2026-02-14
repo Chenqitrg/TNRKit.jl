@@ -60,7 +60,7 @@ end
 function find_L(
         psi::Vector{<:AbstractTensorMap{E, S}}, site::Int, in_inds::Vector{Int}, out_inds::Vector{Int},
         entanglement_criterion::stopcrit
-    )
+    ) where {E, S}
     L = id(E, codomain(psi[site])[in_inds[site]])
     error = [Inf]
     crit = true
