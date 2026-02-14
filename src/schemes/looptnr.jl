@@ -192,8 +192,8 @@ function _entanglement_filtering(
         ΨA, (4, 1), [1, 1, 1, 1], [3, 3, 3, 3],
         entanglement_criterion, trunc
     )
-    @plansor contractcheck = true TA[-1 -2; -3 -4] := TA[1 2; 3 4] * PR4[1; -1] * PL1[-2; 2] * PR2[4; -4] * PL3[-3; 3]
-    @plansor contractcheck = true TB[-1 -2; -3 -4] := TB[1 2; 3 4] * PL2[-1; 1] * PR3[2; -2] * PL4[-4; 4] * PR1[3; -3]
+    @plansor contractcheck = true TA[-1 -2; -3 -4] := TA[1 2; 3 4] * PR3[1; -1] * PL1[-2; 2] * PR1[4; -4] * PL3[-3; 3]
+    @plansor contractcheck = true TB[-1 -2; -3 -4] := TB[1 2; 3 4] * PL2[-1; 1] * PR2[2; -2] * PL4[-4; 4] * PR4[3; -3]
     @assert _check_dual(TA) && _check_dual(TB)
     return TA, TB
 end
