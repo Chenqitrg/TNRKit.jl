@@ -67,8 +67,8 @@ function find_L(
     steps = 1
     while crit
         L_last_time = L
-        for j in 0:(n - 1)
-            running_pos = mod(site + j - 1, n) + 1
+        for j in 0:(length(psi) - 1)
+            running_pos = mod(site + j - 1, length(psi)) + 1
             L = QR_L(
                 L, psi[running_pos], in_inds[running_pos],
                 out_inds[running_pos]
