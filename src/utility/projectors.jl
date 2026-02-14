@@ -187,6 +187,7 @@ function MPO_disentangled!(
                 reverse(collect(out_ind + M_i : M_i + N_i - 1))...
             )
         )
+        @show perm_T_i, perm_TR_i
         TR = transpose(transpose(psi[i], perm_T_i) * PR_i, perm_TR_i)
         LT = transpose(PL_ip1 * transpose(psi[mod(i, n) + 1], perm_T_ip1), perm_LT_ip1)
         @assert [isdual(space(psi[i], ax)) for ax in 1:numind(psi[i])] ==
