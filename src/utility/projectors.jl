@@ -164,7 +164,7 @@ function MPO_disentangled!(
         perm_T_ip1 = (
             (in_ind,),
             (
-                reverse(collect(1 : (in_ind - 1)))..., collect((M + 1) : (M_ip1 + N_ip1))...,
+                reverse(collect(1 : (in_ind - 1)))..., collect((M_ip1 + 1) : (M_ip1 + N_ip1))...,
                 reverse(collect((in_ind + 1) : M_ip1))...,
             ),
         )
