@@ -58,62 +58,53 @@ end
 
 # Function to find the list of left projectors L_list
 function find_L(
-        psi::Vector{T}, in_inds::Vector{Int}, out_inds::Vector{Int},
+        psi::Vector{<:AbstractTensorMap{E, S}}, site::Int, in_inds::Vector{Int}, out_inds::Vector{Int},
         entanglement_criterion::stopcrit
-    ) where {T <: AbstractTensorMap}
-    type = eltype(psi[1])
-    n = length(psi)
-    L_list = map(1:n) do i
-        L = id(type, codomain(psi[i])[in_inds[i]])
-        error = [Inf]
-        crit = true
-        steps = 1
-        while crit
-            L_last_time = L
-            for j in 0:(n - 1)
-                running_pos = mod(i + j - 1, n) + 1
-                L = QR_L(
-                    L, psi[running_pos], in_inds[running_pos],
-                    out_inds[running_pos]
-                )
-            end
-            if space(L) == space(L_last_time)
-                push!(error, abs(norm(L - L_last_time)))
-            end
-            crit = entanglement_criterion(steps, error)
-            steps += 1
+    )
+    L = id(E, codomain(psi[site])[in_inds[site]])
+    error = [Inf]
+    crit = true
+    steps = 1
+    while crit
+        L_last_time = L
+        for j in 0:(n - 1)
+            running_pos = mod(site + j - 1, n) + 1
+            L = QR_L(
+                L, psi[running_pos], in_inds[running_pos],
+                out_inds[running_pos]
+            )
         end
-        return L
+        if space(L) == space(L_last_time)
+            push!(error, abs(norm(L - L_last_time)))
+        end
+        crit = entanglement_criterion(steps, error)
+        steps += 1
     end
-
-    return L_list
+    return L
 end
 
 # Function to find the list of left projectors L_list
 function find_R(
-        psi::Vector{<:AbstractTensorMap{E, S}}, in_inds::Vector{Int}, out_inds::Vector{Int},
+        psi::Vector{<:AbstractTensorMap{E, S}}, site::Int, in_inds::Vector{Int}, out_inds::Vector{Int},
         entanglement_criterion::stopcrit
     ) where {E, S}
-    R_list = map(eachindex(psi)) do i
-        R = id(E, domain(psi[i])[in_inds[i]])
-        error = Float64[Inf]
-        crit = true
-        steps = 1
-        while crit
-            R_last_time = R
-            for j in 0:(length(psi) - 1)
-                running_pos = mod(i - j - 1, length(psi)) + 1
-                R = QR_R(R, psi[running_pos], in_inds[running_pos], out_inds[running_pos])
-            end
-            if space(R) == space(R_last_time)
-                push!(error, abs(norm(R - R_last_time)))
-            end
-            crit = entanglement_criterion(steps, error)
-            steps += 1
+    R = id(E, domain(psi[site])[in_inds[site]])
+    error = Float64[Inf]
+    crit = true
+    steps = 1
+    while crit
+        R_last_time = R
+        for j in 0:(length(psi) - 1)
+            running_pos = mod(site - j - 1, length(psi)) + 1
+            R = QR_R(R, psi[running_pos], in_inds[running_pos], out_inds[running_pos])
         end
-        return R
+        if space(R) == space(R_last_time)
+            push!(error, abs(norm(R - R_last_time)))
+        end
+        crit = entanglement_criterion(steps, error)
+        steps += 1
     end
-    return R_list
+    return R
 end
 
 # Function to find the projector P_L and P_R
@@ -133,62 +124,75 @@ function P_decomp(
 end
 
 # Function to find the list of projectors
-function find_projectors(
-        psi::Vector{T}, in_inds::Vector{Int}, out_inds::Vector{Int},
+function find_projector(
+        psi::Vector{T}, link::Tuple{Int, Int}, in_inds::Vector{Int}, out_inds::Vector{Int},
         entanglement_criterion::stopcrit, trunc::TruncationStrategy
     ) where {T <: AbstractTensorMap}
-    n = length(psi)
-    Ls = find_L(psi, in_inds, out_inds, entanglement_criterion)
-    Rs = find_R(psi, out_inds, in_inds, entanglement_criterion)
-    PRsPLs = map(1:n) do i
-        reversed = isdual(space(psi[i], in_inds[i]))
-        return P_decomp(Rs[mod1(i - 1, n)], Ls[i], trunc; reversed)
-    end
-    PRs = map(Base.Fix2(getindex, 1), PRsPLs)
-    PLs = map(Base.Fix2(getindex, 2), PRsPLs)
-    return PRs, PLs
+    left_site, right_site = link
+
+    N = length(psi)
+    @assert right_site == mod(left_site, N) + 1
+    @assert length(in_inds) == N == length(out_inds)
+
+    L = find_L(psi, right_site, in_inds, out_inds, entanglement_criterion)
+    R = find_R(psi, left_site, out_inds, in_inds, entanglement_criterion)
+
+    reversed = isdual(space(psi[right_site], in_inds[right_site]))
+
+    PR_this, PL_next = P_decomp(R, L, trunc; reversed)
+    return PR_this, PL_next
 end
 
 function MPO_disentangled!(
-        psi::Vector{T}, in_inds::Vector{Int}, out_inds::Vector{Int},
-        PRs::Vector{TR}, PLs::Vector{TL}
+        psi::Vector{T}, in_inds::Vector{Int}, out_inds::Vector{Int}, entanglement_criterion::stopcrit, trunc::TruncationStrategy
     ) where {
-        T <: AbstractTensorMap, TR <: AbstractTensorMap{<:Any, <:Any, 1, 1},
-        TL <: AbstractTensorMap{<:Any, <:Any, 1, 1},
+        T <: AbstractTensorMap
     }
     n = length(psi)
     for i in 1:n
-        M = length(codomain(psi[i]))
-        N = length(domain(psi[i]))
-        in_ind = in_inds[i]
+        link = (i, mod(i, n) + 1)
+        PR_i, PL_ip1 = find_projector(psi, link, in_inds, out_inds, entanglement_criterion, trunc) 
+
+        M_ip1 = length(codomain(psi[i+1]))
+        N_ip1 = length(domain(psi[i+1]))
+
+        M_i = length(codomain(psi[i]))
+        N_i = length(domain(psi[i]))
+
+        in_ind = in_inds[i+1]
         out_ind = out_inds[i]
-        permT = (
+        perm_T_ip1 = (
             (in_ind,),
             (
-                reverse(collect(1:(in_ind - 1)))..., collect((M + 1):(M + N))...,
-                reverse(collect((in_ind + 1):M))...,
+                reverse(collect(1 : (in_ind - 1)))..., collect((M + 1) : (M_ip1 + N_ip1))...,
+                reverse(collect((in_ind + 1) : M_ip1))...,
             ),
         )
-        permLT = (
+        perm_LT_ip1 = (
             (
-                reverse(collect(2:(in_ind + out_ind - 1)))..., 1,
-                reverse(collect((in_ind + out_ind + 1):(M + N)))...,
-            ), (in_ind + out_ind,),
+                reverse(collect(2 : in_ind))..., 1,
+                reverse(collect(in_ind + N_ip1 + 1 : (M_ip1 + N_ip1)))...,
+            ), collect(in_ind + 1 : in_ind + N_ip1),
         )
-        permLTR = (
-            Tuple(collect(out_ind:(out_ind + M - 1))),
+        perm_T_i = (
             (
-                collect(reverse(1:(out_ind - 1)))..., M + N,
-                collect(reverse((out_ind + M):(M + N - 1)))...,
-            ),
+                reverse(collect(M_i + 1 : M_i + out_ind - 1))..., collect(1 : M_i)...,
+                reverse(collect(M_i + out_ind + 1 : M_i + N_i)...)
+            ), (M_i + out_ind,)
         )
-        LTR = transpose(
-            transpose(PLs[i] * transpose(psi[i], permT), permLT) *
-                PRs[mod(i, n) + 1], permLTR
+        perm_TR_i = (
+            collect(out_ind : out_ind + M_i - 1),
+            (
+                reverse(collect(1 : out_ind - 1))..., M_i + N_i,
+                reverse(collect(out_ind + M_i : M_i + N_i - 1))...
+            )
         )
+        TR = transpose(transpose(psi[i], perm_T_i) * PR_i, perm_TR_i)
+        LT = transpose(PL_ip1 * transpose(psi[mod(i, n) + 1], perm_T_ip1), perm_LT_ip1)
         @assert [isdual(space(psi[i], ax)) for ax in 1:numind(psi[i])] ==
             [isdual(space(LTR, ax)) for ax in 1:numind(LTR)]
-        psi[i] = LTR
+        psi[i] = TR
+        psi[mod(i, n) + 1] = LT
     end
     return
 end

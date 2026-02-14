@@ -112,16 +112,15 @@ function Ψ_B(ΨA::Vector{<:AbstractTensorMap{E, S, 1, 3}}, trunc::TruncationStr
         collect(SVD12(ΨA[4], _trunc));
     ]
 
-    @show "changed"
+    @show "New one loop"
 
-    # ΨB_function(steps, data) = abs(data[end])
-    # criterion = maxiter(10) & convcrit(1.0e-12, ΨB_function)
+    ΨB_function(steps, data) = abs(data[end])
+    criterion = maxiter(10) & convcrit(1.0e-12, ΨB_function)
 
-    # in_inds = ones(Int, 2 * NA)
-    # out_inds = 2 * ones(Int, 2 * NA)
+    in_inds = ones(Int, 2 * NA)
+    out_inds = 2 * ones(Int, 2 * NA)
 
-    # PR_list, PL_list = find_projectors(ΨB, in_inds, out_inds, criterion, trunc & truncentanglement)
-    # MPO_disentangled!(ΨB, in_inds, out_inds, PR_list, PL_list)
+    MPO_disentangled!(ΨB, in_inds, out_inds, criterion, trunc & truncentanglement)
     return ΨB
 end
 
