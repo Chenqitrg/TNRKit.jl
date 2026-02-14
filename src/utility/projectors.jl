@@ -172,7 +172,7 @@ function MPO_disentangled!(
             (
                 reverse(Tuple(2 : in_ind))..., 1,
                 reverse(Tuple(in_ind + N_ip1 + 1 : (M_ip1 + N_ip1)))...,
-            ), collect(in_ind + 1 : in_ind + N_ip1),
+            ), Tuple(in_ind + 1 : in_ind + N_ip1),
         )
         perm_T_i = (
             (
