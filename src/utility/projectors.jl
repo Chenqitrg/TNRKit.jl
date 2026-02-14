@@ -153,13 +153,13 @@ function MPO_disentangled!(
         link = (i, mod(i, n) + 1)
         PR_i, PL_ip1 = find_projector(psi, link, in_inds, out_inds, entanglement_criterion, trunc) 
 
-        M_ip1 = length(codomain(psi[i+1]))
-        N_ip1 = length(domain(psi[i+1]))
+        M_ip1 = length(codomain(psi[mod(i, n) + 1]))
+        N_ip1 = length(domain(psi[mod(i, n) + 1]))
 
         M_i = length(codomain(psi[i]))
         N_i = length(domain(psi[i]))
 
-        in_ind = in_inds[i+1]
+        in_ind = in_inds[mod(i, n) + 1]
         out_ind = out_inds[i]
         perm_T_ip1 = (
             (in_ind,),
