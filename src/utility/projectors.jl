@@ -164,27 +164,27 @@ function MPO_disentangled!(
         perm_T_ip1 = (
             (in_ind,),
             (
-                reverse(collect(1 : (in_ind - 1)))..., collect((M_ip1 + 1) : (M_ip1 + N_ip1))...,
-                reverse(collect((in_ind + 1) : M_ip1))...,
+                reverse(Tuple(1 : (in_ind - 1)))..., Tuple((M_ip1 + 1) : (M_ip1 + N_ip1))...,
+                reverse(Tuple((in_ind + 1) : M_ip1))...,
             ),
         )
         perm_LT_ip1 = (
             (
-                reverse(collect(2 : in_ind))..., 1,
-                reverse(collect(in_ind + N_ip1 + 1 : (M_ip1 + N_ip1)))...,
+                reverse(Tuple(2 : in_ind))..., 1,
+                reverse(Tuple(in_ind + N_ip1 + 1 : (M_ip1 + N_ip1)))...,
             ), collect(in_ind + 1 : in_ind + N_ip1),
         )
         perm_T_i = (
             (
-                reverse(collect(M_i + 1 : M_i + out_ind - 1))..., collect(1 : M_i)...,
-                reverse(collect(M_i + out_ind + 1 : M_i + N_i))...
+                reverse(Tuple(M_i + 1 : M_i + out_ind - 1))..., Tuple(1 : M_i)...,
+                reverse(Tuple(M_i + out_ind + 1 : M_i + N_i))...
             ), (M_i + out_ind,)
         )
         perm_TR_i = (
-            collect(out_ind : out_ind + M_i - 1),
+            Tuple(out_ind : out_ind + M_i - 1),
             (
-                reverse(collect(1 : out_ind - 1))..., M_i + N_i,
-                reverse(collect(out_ind + M_i : M_i + N_i - 1))...
+                reverse(Tuple(1 : out_ind - 1))..., M_i + N_i,
+                reverse(Tuple(out_ind + M_i : M_i + N_i - 1))...
             )
         )
         @show perm_T_i, perm_TR_i
