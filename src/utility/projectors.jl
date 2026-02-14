@@ -187,11 +187,14 @@ function MPO_disentangled!(
                 reverse(Tuple(out_ind + M_i : M_i + N_i - 1))...
             )
         )
-        @show perm_T_i, perm_TR_i
         TR = transpose(transpose(psi[i], perm_T_i) * PR_i, perm_TR_i)
         LT = transpose(PL_ip1 * transpose(psi[mod(i, n) + 1], perm_T_ip1), perm_LT_ip1)
+
         @assert [isdual(space(psi[i], ax)) for ax in 1:numind(psi[i])] ==
-            [isdual(space(LTR, ax)) for ax in 1:numind(LTR)]
+            [isdual(space(TR, ax)) for ax in 1:numind(TR)]
+        @assert [isdual(space(psi[mod(i, n) + 1], ax)) for ax in 1:numind(psi[mod(i, n) + 1])] ==
+        [isdual(space(LT, ax)) for ax in 1:numind(LT)]
+
         psi[i] = TR
         psi[mod(i, n) + 1] = LT
     end
