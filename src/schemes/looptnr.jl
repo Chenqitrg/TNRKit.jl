@@ -176,12 +176,24 @@ function _entanglement_filtering(
         entanglement_criterion::stopcrit, trunc::TruncationStrategy
     ) where {E, S}
     ΨA = Ψ_A(TA, TB)
-    PRs, PLs = find_projectors(
-        ΨA, [1, 1, 1, 1], [3, 3, 3, 3],
+    PR1, PL2 = find_projector(
+        ΨA, (1, 2), [1, 1, 1, 1], [3, 3, 3, 3],
         entanglement_criterion, trunc
     )
-    @plansor TA[-1 -2; -3 -4] := TA[1 2; 3 4] * PRs[4][1; -1] * PLs[1][-2; 2] * PRs[2][4; -4] * PLs[3][-3; 3]
-    @plansor TB[-1 -2; -3 -4] := TB[1 2; 3 4] * PLs[2][-1; 1] * PRs[3][2; -2] * PLs[4][-4; 4] * PRs[1][3; -3]
+    PR2, PL3 = find_projector(
+        ΨA, (2, 3), [1, 1, 1, 1], [3, 3, 3, 3],
+        entanglement_criterion, trunc
+    )
+    PR3, PL4 = find_projector(
+        ΨA, (3, 4), [1, 1, 1, 1], [3, 3, 3, 3],
+        entanglement_criterion, trunc
+    )
+    PR4, PL1 = find_projector(
+        ΨA, (4, 1), [1, 1, 1, 1], [3, 3, 3, 3],
+        entanglement_criterion, trunc
+    )
+    @plansor TA[-1 -2; -3 -4] := TA[1 2; 3 4] * PR4[1; -1] * PL1[-2; 2] * PR2[4; -4] * PL3[-3; 3]
+    @plansor TB[-1 -2; -3 -4] := TB[1 2; 3 4] * PL2[-1; 1] * PR3[2; -2] * PL4[-4; 4] * PR1[3; -3]
     @assert _check_dual(TA) && _check_dual(TB)
     return TA, TB
 end
