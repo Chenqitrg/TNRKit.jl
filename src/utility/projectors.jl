@@ -177,7 +177,7 @@ function MPO_disentangled!(
         perm_T_i = (
             (
                 reverse(collect(M_i + 1 : M_i + out_ind - 1))..., collect(1 : M_i)...,
-                reverse(collect(M_i + out_ind + 1 : M_i + N_i)...)
+                reverse(collect(M_i + out_ind + 1 : M_i + N_i))...
             ), (M_i + out_ind,)
         )
         perm_TR_i = (
