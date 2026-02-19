@@ -125,6 +125,7 @@ include("utility/cdl.jl")
 export cdl_tensor
 
 include("utility/projectors.jl")
+include("utility/entropies.jl")
 
 include("utility/blocking.jl")
 export block_tensors
