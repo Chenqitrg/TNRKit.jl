@@ -261,7 +261,8 @@ function opt_T(
         apply_f, W, psi; krylovdim = 20, maxiter = 20, tol = 1.0e-12,
         verbosity = 0
     )
-    return new_T
+    res = norm(info.residual)
+    return new_T, res
 end
 
 # Function to compute the right cache for the transfer matrices. Here we sweep from left to right. At the end we add the identity transfer matrix to the cache.
@@ -326,14 +327,14 @@ function loop_opt(
 
             N = tN(left_BB, right_cache_BB[pos_psiB]) # Compute the half of the matrix N for the current position in the loop, right cache is used to minimize the number of multiplications
             W = tW(pos_psiB, psiA, psiB, left_BA, right_cache_BA[pos_psiA]) # Compute the vector W for the current position in the loop, using the right cache for ΨBΨA
-            new_psiB = opt_T(N, W, psiB[pos_psiB]) # Optimize the tensor T for the current position in the loop, with the psiB[pos_psiB] be the initial guess
+            new_psiB, residual = opt_T(N, W, psiB[pos_psiB]) # Optimize the tensor T for the current position in the loop, with the psiB[pos_psiB] be the initial guess
 
             transfer = psiBpsiB[pos_psiB] * N
             if verbosity > 3
                 S_cir = VN_entropy(transfer)
                 S_rad = VN_entropy(transpose(transfer, ((2, 4), (1, 3))))
                 relative_shift = norm(new_psiB - psiB[pos_psiB]) / norm(psiB[pos_psiB])
-                @infov 4 "Link: ($(mod(pos_psiB - 2, NB) + 1), $(pos_psiB)), S_cir = $S_cir, S_rad = $S_rad, ΔpsiB_$pos_psiB = $relative_shift"
+                @infov 4 "Link: ($(mod(pos_psiB - 2, NB) + 1), $(pos_psiB)), S_cir = $S_cir, S_rad = $S_rad, ΔΨB[$pos_psiB] = $relative_shift, residual = $residual"
             end
 
             psiB[pos_psiB] = new_psiB # Update a single local tensor in the MPS Ψ_B
