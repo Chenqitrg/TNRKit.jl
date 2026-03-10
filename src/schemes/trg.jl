@@ -32,11 +32,16 @@ mutable struct TRG{E, S, TT <: AbstractTensorMap{E, S, 2, 2}} <: TNRScheme{E, S}
     end
 end
 
+function step(VA::AbstractTensorMap{E, S, 2, 1}, UA::AbstractTensorMap{E, S, 1, 2}, VB::AbstractTensorMap{E, S, 2, 1}, UB::AbstractTensorMap{E, S, 1, 2}) where {E, S}
+    @plansor opt = true T[-1 -2; -3 -4] := UA[-1; 1 2] * UB[-2; 2 3] * VA[4 3; -4] * VB[1 4; -3]
+    return T
+end
+
 function step!(scheme::TRG, trunc::TruncationStrategy)
     A, B = SVD12(scheme.T, trunc)
     Tp = transpose(scheme.T, ((2, 4), (1, 3)))
     C, D = SVD12(Tp, trunc)
-    @plansor scheme.T[-1 -2; -3 -4] := D[-2; 1 2] * B[-1; 4 1] * C[4 3; -3] * A[3 2; -4]
+    scheme.T = step(A, B, C, D)
     return scheme
 end
 

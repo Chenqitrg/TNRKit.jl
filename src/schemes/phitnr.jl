@@ -1,3 +1,13 @@
+mutable struct ΦTRG{E, S, TT <: AbstractTensorMap{E, S, 2, 2}} <: TNRScheme{E, S}
+    "central tensor"
+    T::TT
+
+    function ΦTRG(T::TT) where {E, S, TT <: AbstractTensorMap{E, S, 2, 2}}
+        return new{E, S, TT}(T)
+    end
+end
+
+
 function ΦΨAΨA(TA::AbstractTensorMap{E, S, 2, 2}, TB::AbstractTensorMap{E, S, 2, 2}) where {E, S}
     TA_tr = transpose(TA, ((2, 4), (1, 3)); copy = true)
     Aa = TA_tr * TA_tr'
@@ -49,6 +59,11 @@ function ΨBΨA(ΨB::Vector{<:AbstractTensorMap{E, S, 1, 3}}, ΨA::Vector{<:Abst
     end
 end
 
+function ΨB_conj(ΨB::Vector{<:AbstractTensorMap{E, S, 1, 2}}) where {E, S}
+    ΨB_conj_vect = [transpose(ΨB[2], ((2,), (3, 1))), transpose(ΨB[1], ((3,), (1, 2))), transpose(ΨB[4], ((2,), (3, 1))), transpose(ΨB[3], ((3,), (1, 2))), transpose(ΨB[6], ((2,), (3, 1))), transpose(ΨB[5], ((3,), (1, 2))), transpose(ΨB[8], ((2,), (3, 1))), transpose(ΨB[7], ((3,), (1, 2)))]
+    return ΨB_conj_vect
+end
+
 function opt_B_down(left_B::AbstractTensorMap{E, S, 2, 2}, right_B::AbstractTensorMap{E, S, 2, 2}, left_A::AbstractTensorMap{E, S, 2, 2}, right_A::AbstractTensorMap{E, S, 2, 2}, down::AbstractTensorMap{E, S, 2, 1}, up::AbstractTensorMap{E, S, 1, 2}, TA::AbstractTensorMap{E, S, 2, 2}) where {E, S}
     function A(x::AbstractTensorMap{E, S, 2, 1}) where {E, S}
         T_approx = x * up
@@ -56,12 +71,12 @@ function opt_B_down(left_B::AbstractTensorMap{E, S, 2, 2}, right_B::AbstractTens
         return Ax
     end
     @plansor contractcheck = true b[1 6; 0] := left_A[1 2; 3 4] * TA[2 5; 4 7] * right_A[5 6; 7 8] * up'[3 8; 0]
-    Δdown, info = lssolve((A, A), b - A(down), 1e-7; krylovdim = 50, maxiter = 150, tol = 1.0e-12,
+    new_down, info = lssolve((A, A), b, 1e-5; krylovdim = 50, maxiter = 150, tol = 1.0e-12,
         verbosity = 0)
     if info.converged == 0
         @warn "Residual = $(info.normres)."
     end
-    return down + Δdown, norm(Δdown) / norm(down), info.normres
+    return new_down, norm(new_down - down) / norm(down), info.normres
 end
 
 function opt_B_up(left_B::AbstractTensorMap{E, S, 2, 2}, right_B::AbstractTensorMap{E, S, 2, 2}, left_A::AbstractTensorMap{E, S, 2, 2}, right_A::AbstractTensorMap{E, S, 2, 2}, down::AbstractTensorMap{E, S, 2, 1}, up::AbstractTensorMap{E, S, 1, 2}, TA::AbstractTensorMap{E, S, 2, 2}) where {E, S}
@@ -71,12 +86,12 @@ function opt_B_up(left_B::AbstractTensorMap{E, S, 2, 2}, right_B::AbstractTensor
         return Ax
     end
     @plansor opt = true b[0; 3 8] := left_A[1 2; 3 4] * TA[2 5; 4 7] * right_A[5 6; 7 8] * down'[0; 1 6]
-    Δup, info = lssolve((A, A), b - A(up), 1e-7; krylovdim = 100, maxiter = 200, tol = 1.0e-12,
+    new_up, info = lssolve((A, A), b, 1e-5; krylovdim = 50, maxiter = 150, tol = 1.0e-12,
         verbosity = 0)
     if info.converged == 0
         @warn "Residual = $(info.normres)."
     end
-    return up + Δup, norm(Δup) / norm(up), info.normres
+    return new_up, norm(new_up - up) / norm(up), info.normres
 end
 
 function to_cost(left_BB::AbstractTensorMap{E, S, 2, 2}, right_BB::AbstractTensorMap{E, S, 2, 2}, left_BA::AbstractTensorMap{E, S, 2, 2}, right_BA::AbstractTensorMap{E, S, 2, 2}, TB::AbstractTensorMap{E, S, 2, 2}, TA::AbstractTensorMap{E, S, 2, 2}, AA::Float64) where {E, S}
@@ -85,12 +100,17 @@ function to_cost(left_BB::AbstractTensorMap{E, S, 2, 2}, right_BB::AbstractTenso
     return BB_const + AA - 2 * real(BA_const)
 end
 
-function Φ_opt(TA::AbstractTensorMap{E, S, 2, 2}, TB::AbstractTensorMap{E, S, 2, 2}, trunc::TruncationStrategy) where {E, S}
+function Φ_init(TA::AbstractTensorMap{E, S, 2, 2}, TB::AbstractTensorMap{E, S, 2, 2}, trunc::TruncationStrategy) where {E, S}
     Aa, aA, Bb, bB = ΦΨAΨA(TA, TB)
     BAB_env, ABA_env = env(Aa, aA, Bb, bB)
     BAB_conj, ABA_conj = env_conj(Aa, aA, Bb, bB)
     VA, UA, TA_trunc, const_AA, costA_0 = ΦΨB(trunc, TA, BAB_conj, BAB_env)
     VB, UB, TB_trunc, const_BB, costB_0 = ΦΨB(trunc, transpose(TB, ((2, 4), (1, 3))), ABA_env, ABA_conj)
+    return VA, UA, VB, UB, TA_trunc, TB_trunc, const_AA, const_BB
+end
+
+function Φ_opt(TA::AbstractTensorMap{E, S, 2, 2}, TB::AbstractTensorMap{E, S, 2, 2}, trunc::TruncationStrategy) where {E, S}
+    VA, UA, VB, UB, TA_trunc, TB_trunc, const_AA, const_BB = Φ_init(TA, TB, trunc)
 
     Ψ_A_env = Ψ_A(TA, TB)
     Ψ_B_env = [transpose(VA, ((2,), (1, 3)); copy = true), copy(UA), transpose(UB, ((2,), (3, 1)); copy = true), transpose(VB, ((3,), (2, 1)); copy = true), transpose(UA, ((2,), (3, 1)); copy = true), transpose(VA, ((3,), (2, 1)); copy = true), transpose(VB, ((2,), (1, 3)); copy = true), copy(UB)]
@@ -105,7 +125,7 @@ function Φ_opt(TA::AbstractTensorMap{E, S, 2, 2}, TB::AbstractTensorMap{E, S, 2
     sweep = 1
     crit = true
 
-    while sweep < 20
+    while sweep < 2
         right_cache_BB_env = right_cache(Ψ_B_Ψ_B_two_sites_env)
         right_cache_BA_env = right_cache(Ψ_B_Ψ_A_env)
 
@@ -182,4 +202,13 @@ function Φ_opt(TA::AbstractTensorMap{E, S, 2, 2}, TB::AbstractTensorMap{E, S, 2
 
         crit = sweep < 20
     end
+
+    return Ψ_B_env
+end
+
+function step!(scheme::ΦTRG, trunc::TruncationStrategy)
+    VA, UA, VB, UB, TA_trunc, TB_trunc, const_AA, const_BB = Φ_init(scheme.T, scheme.T, trunc)
+    scheme.T = step(VA, UA, VB, UB)
+    @show "step"
+    return scheme
 end
