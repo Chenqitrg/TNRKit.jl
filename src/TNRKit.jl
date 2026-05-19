@@ -49,6 +49,8 @@ include("schemes/impurityhotrg.jl")
 # Correlation methods
 include("schemes/correlationhotrg.jl")
 
+#Thermal TNR
+include("schemes/ttnr.jl")
 # Loop Methods
 include("schemes/looptnr.jl")
 include("schemes/symmetric_looptnr.jl")
@@ -62,6 +64,7 @@ export HOTRG
 export HOTRG_3D
 export ATRG
 export ATRG_3D
+export ThermalTNR
 
 export CTM
 export Sublattice_CTM
@@ -104,7 +107,7 @@ include("models/potts.jl")
 export classical_potts, potts_βc, classical_potts_impurity
 
 include("models/clock.jl")
-export classical_clock
+export classical_clock, ZN_gauge_theory_dual
 
 include("models/XY.jl")
 export classical_XY, XY_βc
