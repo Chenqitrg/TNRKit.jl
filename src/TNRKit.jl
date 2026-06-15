@@ -14,6 +14,7 @@ using Roots
 using NonlinearSolve
 using Base.Threads
 using Combinatorics: permutations
+import TensorKitTensors.SpinOperators as SO
 
 # stop criteria
 include("utility/stopping.jl")
@@ -121,6 +122,10 @@ export phi4_real, phi4_real_imp1, phi4_real_imp2
 
 include("models/phi4_complex.jl")
 export phi4_complex, phi4_complex_impϕ, phi4_complex_impϕdag, phi4_complex_impϕabs, phi4_complex_impϕ2, phi4_complex_all
+
+include("models/quantum_1D.jl")
+export gate_to_tensor, vertical_stack_exp, vertical_stack_linear
+export quantum_ising_chain
 
 # utility functions
 include("utility/free_energy.jl")
