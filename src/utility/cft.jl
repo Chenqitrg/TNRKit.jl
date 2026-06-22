@@ -1,5 +1,5 @@
 """
-    struct CFTData{E, K, V, A <: AbstractVector{E}}
+    struct CFTData{E, K, A <: AbstractVector{E}}
 
 A struct to hold conformal data extracted from a TNR scheme.
 
@@ -11,16 +11,16 @@ A struct to hold conformal data extracted from a TNR scheme.
 # Fields
     - `central_charge::E`: The central charge of the CFT.
     - `modular_parameter::E`: The elementary modular parameter of a single tensor.
-    - `scaling_dimensions::StructuredVector{E, K, V, A}`: The scaling dimensions of the CFT, organized in a `StructuredVector` where the sectors correspond to different spin sectors (or other quantum numbers) and the data contains the scaling dimensions within those sectors
+    - `scaling_dimensions::StructuredVector{E, K, A}`: The scaling dimensions of the CFT, organized in a `StructuredVector` where the sectors correspond to different spin sectors (or other quantum numbers) and the data contains the scaling dimensions within those sectors
 
 """
-struct CFTData{E, K, V, A <: AbstractVector{E}}
+struct CFTData{E, K, A <: AbstractVector{E}}
     "Central charge of the CFT."
     central_charge::E
     "Elementary modular parameter for one tensor"
     modular_parameter::E
     "Scaling dimensions of the CFT."
-    scaling_dimensions::StructuredVector{E, K, V, A}
+    scaling_dimensions::StructuredVector{E, K, A}
 end
 
 function Base.show(io::IO, data::CFTData)
@@ -73,16 +73,7 @@ with `unitcell` copies of `T` concatenated horizontally.
 `τ0` is the modular parameter of a single `T`.
 """
 function _scaling_dimensions(T::TensorMap{E, S, 2, 2}, τ0::Number; unitcell = 1) where {E, S}
-    indices = [[i, -i, -(i + unitcell), i + 1] for i in 1:unitcell]
-    indices[end][4] = 1
-
-    T = ncon(fill(T, unitcell), indices)
-    # restore leg convention
-    outinds = Tuple(collect(1:unitcell))
-    ininds = Tuple(collect((unitcell + 1):(2unitcell)))
-    T = permute(T, (outinds, ininds))
-
-    sv = StructuredVector(eig_vals(T))
+    sv = _rowtm_eigvals(T, unitcell)
     sv = filter(x -> real(x) > 0 && abs(x) > 1.0e-12, sv)
     isempty(sv) && throw(ArgumentError("No valid eigenvalues found in transfer matrix spectrum."))
 
@@ -100,7 +91,8 @@ function area_term(
         TA::TensorMap{E, S, 2, 2}, TB::TensorMap{E, S, 2, 2}; is_real = true
     ) where {E, S}
     I = sectortype(TA)
-    λ = first(leading_eigenvalue(CFTTransferMatrix(TA, TB, [2, 2, 0]), one(I)))
+    pbc = (BraidingStyle(I) == Fermionic()) ? false : true
+    λ = first(leading_eigenvalue(CFTTransferMatrix(TA, TB, [2, 2, 0]), one(I); pbc, Nh = 1))
     return is_real ? real(λ) : λ
 end
 
@@ -120,10 +112,6 @@ function spec(
         τ0::Number; Nh = 25, trunc = notrunc(), truncentanglement = notrunc()
     ) where {E, S}
     I = sectortype(TA)
-    if BraidingStyle(I) != Bosonic()
-        throw(ArgumentError("Sectors with non-Bosonic charge $I has not been implemented"))
-    end
-
     tm = CFTTransferMatrix(TA, TB, shape; trunc, truncentanglement)
     τ = modular_parameter(tm, τ0)
 
@@ -131,7 +119,11 @@ function spec(
     eigs = leading_eigenvalue(tm; Nh)
 
     # central charge
-    λ0 = eigs[one(I)][1]
+    λ0 = if BraidingStyle(I) == Fermionic()
+        eigs[(:NS, one(I))][1]
+    else
+        eigs[one(I)][1]
+    end
     area = shape[1] * shape[2]
     central_charge = 6 / pi / (imag(τ) - imag(τ0) * area / 4) * log(λ0)
 
@@ -158,8 +150,10 @@ end
 sigmoid(x) = 1 / (1 + exp(-x))
 logit(p) = log(p / (1 - p))
 function _find_λ0(TA, TB, shape)
-    charge = one(sectortype(TA))
-    λs = leading_eigenvalue(CFTTransferMatrix(TA, TB, shape), charge; Nh = 1)
+    I = sectortype(TA)
+    charge = one(I)
+    pbc = (BraidingStyle(I) == Fermionic()) ? false : true
+    λs = leading_eigenvalue(CFTTransferMatrix(TA, TB, shape), charge; pbc, Nh = 1)
     return real(first(λs))
 end
 
